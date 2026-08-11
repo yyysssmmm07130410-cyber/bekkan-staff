@@ -289,11 +289,71 @@ select.ctrl:focus{border-color:var(--gold)}
 .pos-section-count{font-size:12px;color:var(--muted);background:var(--paper);border:0.5px solid var(--border);border-radius:20px;padding:1px 10px}
 .pos-section-line{flex:1;height:0.5px;background:var(--border)}
 .pos-sections{padding-top:8px}
+
+/* Auth screen */
+.auth-screen{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:0}
+.auth-box{background:#2A2927;border:0.5px solid #3A3835;border-radius:20px;padding:40px 32px;width:320px;text-align:center}
+.auth-logo{font-size:11px;letter-spacing:.2em;color:#C9A84C;margin-bottom:24px;font-weight:600}
+.auth-title{font-size:18px;color:#F5F2EC;font-weight:500;margin-bottom:8px}
+.auth-sub{font-size:12px;color:#8A8880;margin-bottom:24px}
+.auth-input{width:100%;height:44px;background:#1A1917;border:0.5px solid #3A3835;border-radius:10px;color:#F5F2EC;font-size:15px;padding:0 14px;text-align:center;letter-spacing:.1em;outline:none;margin-bottom:12px}
+.auth-input:focus{border-color:#C9A84C}
+.auth-btn{width:100%;height:44px;background:#C9A84C;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.auth-btn:hover{background:#b8932f}
+.auth-err{font-size:12px;color:#ff6b6b;min-height:18px}
+.auth-mode{font-size:12px;color:#8A8880;cursor:pointer;text-decoration:underline}
+
+/* File preview modal */
+.file-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.file-overlay.open{display:flex}
+.file-overlay img{max-width:90vw;max-height:80vh;border-radius:8px;object-fit:contain}
+.file-overlay iframe{width:90vw;height:80vh;border:none;border-radius:8px;background:#fff}
+.file-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Stats bar */
+.stats-bar{padding:12px 24px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:0.5px solid var(--border);background:var(--surface)}
+.stat-chip{display:flex;flex-direction:column;align-items:center;padding:6px 14px;border-radius:10px;background:var(--paper);border:0.5px solid var(--border);min-width:64px}
+.stat-num{font-size:18px;font-weight:700;color:var(--ink);line-height:1}
+.stat-label{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.04em}
+.stat-chip.gold .stat-num{color:#C9A84C}
+
+/* Card redesign */
+.card-age{font-size:11px;color:var(--muted);margin-bottom:4px}
+.card-sections{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px}
+.sec-badge{font-size:9px;padding:2px 7px;border-radius:4px;font-weight:600}
+.sec-runner{background:#E3F2FD;color:#1565C0}
+.sec-lounge{background:#FCE4EC;color:#880E4F}
+.sec-room{background:#E0F2F1;color:#00695C}
+.sec-bar{background:#FFF3E0;color:#E65100}
+.card-pct{font-size:11px;color:var(--muted);text-align:right;margin-bottom:2px}
+
+/* Step 2段表示 */
+.step-two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.step-col-label{font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;font-weight:600}
+.step-road-v{display:flex;flex-direction:column;gap:4px}
+.step-node-v{display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 0}
+.step-dot-v{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted);background:var(--surface);flex-shrink:0;transition:all .15s}
+.step-node-v.done .step-dot-v{background:var(--gold);border-color:var(--gold);color:#fff}
+.step-node-v.current .step-dot-v{background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 0 0 3px var(--gold-light)}
+.step-node-v-label{font-size:11px;color:var(--muted);line-height:1.2}
+.step-node-v.current .step-node-v-label{color:var(--ink);font-weight:600}
+.step-node-v.done .step-node-v-label{color:var(--ink)}
 </style>
 </head>
 <body>
 
 
+
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">BEKKAN STAFF</div>
+    <div class="auth-title" id="auth-title">パスワードを入力</div>
+    <div class="auth-sub" id="auth-sub">閲覧用または編集用パスワードを入力してください</div>
+    <input type="password" class="auth-input" id="auth-input" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')tryAuth()">
+    <button class="auth-btn" onclick="tryAuth()">ログイン</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
 <div class="saving-toast" id="saving-toast">保存中…</div>
 <div class="header">
   <div class="header-logo">BEKKAN STAFF</div>
@@ -317,12 +377,19 @@ select.ctrl:focus{border-color:var(--gold)}
     <option>ホール</option>
     <option>アフター</option>
     <option>BAR</option>
+    <option>外注</option>
   </select>
 </div>
 
-<div class="step-pills" id="pills"></div>
+<div class="stats-bar" id="stats-bar"></div>
 <div class="pos-sections" id="grid"></div>
 
+
+<!-- File Preview Modal -->
+<div class="file-overlay" id="file-overlay" onclick="closeFilePreview(event)">
+  <button class="file-close" onclick="closeFilePreview()">×</button>
+  <div id="file-preview-content"></div>
+</div>
 <!-- Modal -->
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
   <div class="modal" id="modal">
@@ -352,6 +419,7 @@ const STEP_CHECKS = {
     { key:'contract',  label:'雇用契約書',   file:true },
     { key:'roster',    label:'従業員名簿',   file:true },
     { key:'photo',     label:'顔写真',       file:true },
+    { key:'pledge',    label:'入店誓約書',   file:true },
   ],
   2: [
     { key:'attendance', label:'勤怠 / 基本姿勢',       file:false },
@@ -402,7 +470,7 @@ const DEFAULT_STAFF=[
   {id:9,  name:'浦辺',   kana:'うらべ',      start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
   {id:10, name:'高木一', kana:'たかぎはじめ', start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
   {id:11, name:'古賀尚', kana:'こがなお',    start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
-  {id:12, name:'遠藤',   kana:'えんどう',    start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
+  {id:12, name:'遠藤健太', kana:'えんどうけんた', start:'',emp:'アルバイト',pos:'外注',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
   {id:13, name:'塚原',   kana:'つかはら',    start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
   {id:14, name:'阪田',   kana:'さかた',      start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
   {id:15, name:'小川',   kana:'おがわ',      start:'',emp:'アルバイト',pos:'ホール',  photo:'',step:1,checks:{},files:{},test1:'',test2:'',note:'',updated:'2026-08-01',updater:''},
@@ -472,35 +540,61 @@ function stepStyle(sid){
 function initials(n){return n.replace(/\s/g,'').slice(0,2);}
 
 // ---- Render pills ----
-function renderPills(){
-  const el=document.getElementById('pills');
-  el.innerHTML='<button class="pill active" onclick="setStep(0,this)">全員</button>'+
-    STEPS.map(s=>`<button class="pill" onclick="setStep(${s.id},this)">STEP${s.id<=7?s.id:''} ${s.label}</button>`).join('');
-}
-function setStep(id,btn){
-  activeStep=id;
-  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active');
-  renderCards();
+function renderStats(){
+  const el=document.getElementById('stats-bar');
+  if(!el) return;
+  const total=staff.length;
+  const goal=staff.filter(s=>s.step>=8).length;
+  const room=staff.filter(s=>s.step>=6).length;
+  const lounge=staff.filter(s=>s.step>=5).length;
+  const runner=staff.filter(s=>s.step>=4).length;
+  const bar=staff.filter(s=>s.pos==='BAR').length;
+  el.innerHTML=`
+    <div class="stat-chip"><div class="stat-num">${total}</div><div class="stat-label">在籍</div></div>
+    <div class="stat-chip gold"><div class="stat-num">${goal}</div><div class="stat-label">GOAL</div></div>
+    <div class="stat-chip"><div class="stat-num">${room}</div><div class="stat-label">個室</div></div>
+    <div class="stat-chip"><div class="stat-num">${lounge}</div><div class="stat-label">ラウンジ</div></div>
+    <div class="stat-chip"><div class="stat-num">${runner}</div><div class="stat-label">ランナー</div></div>
+    <div class="stat-chip"><div class="stat-num">${bar}</div><div class="stat-label">BAR</div></div>
+  `;
 }
 
 // ---- Render cards ----
-function makeCard(s, viewClass){
-  const st=STEPS.find(x=>x.id===s.step)||STEPS[0];
-  const {bg,c}=stepStyle(s.step);
-  const stepItems=STEP_CHECKS[s.step]||[];
-  const stepDone=stepItems.filter(it=>s.checks[it.key]).length;
-  const pct=stepItems.length?Math.round(stepDone/stepItems.length*100):100;
+function calcAge(birthStr){
+  if(!birthStr) return null;
+  const b=new Date(birthStr), now=new Date();
+  let age=now.getFullYear()-b.getFullYear();
+  if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate())) age--;
+  return age;
+}
+function sectionBadges(s){
+  let badges='';
+  if(s.step>=4) badges+=`<span class="sec-badge sec-runner">ランナー</span>`;
+  if(s.step>=5) badges+=`<span class="sec-badge sec-lounge">ラウンジ</span>`;
+  if(s.step>=6) badges+=`<span class="sec-badge sec-room">個室</span>`;
+  if(s.pos==='BAR') badges+=`<span class="sec-badge sec-bar">BAR</span>`;
+  return badges;
+}
+function makeCard(s){
+  // 全STEPを通じた総合進行度
+  const allItems=Object.values(STEP_CHECKS).flat();
+  const allDone=allItems.filter(it=>s.checks[it.key]).length;
+  const totalPct=allItems.length?Math.round(allDone/allItems.length*100):0;
   const photo=s.photo?`<img src="${s.photo}" alt="${s.name}">`:`<span class="card-initials">${initials(s.name)}</span>`;
+  const age=calcAge(s.birth);
+  const ageStr=age!==null?`${age}歳`:'';
+  const tenureStr=tenure(s.start);
+  const badges=sectionBadges(s);
+  const {bg,c}=stepStyle(s.step);
+  const st=STEPS.find(x=>x.id===s.step)||STEPS[0];
   return`<div class="card" onclick="openDetail(${s.id})">
     <div class="card-photo">${photo}</div>
     <div class="card-body">
       <div class="card-name">${s.name}</div>
-      <div class="card-tenure">勤続 <span>${tenure(s.start)}</span></div>
-      <div class="step-track"><div class="step-fill" style="width:${pct}%"></div></div>
-      <span class="step-badge" style="background:${bg};color:${c}">
-        <span class="step-num">${s.step<=7?'STEP'+s.step:'★'}</span>${st.label}
-      </span>
+      <div class="card-age">${[ageStr, tenureStr?'勤続'+tenureStr:''].filter(Boolean).join(' · ')}</div>
+      ${badges?`<div class="card-sections">${badges}</div>`:'<div style="height:4px"></div>'}
+      <div class="card-pct">${totalPct}%</div>
+      <div class="step-track"><div class="step-fill" style="width:${totalPct}%"></div></div>
     </div>
   </div>`;
 }
@@ -512,7 +606,7 @@ function renderCards(){
   const viewCls='view-'+currentView;
 
   // ポジション一覧（順序固定）
-  const POSITIONS=['ホール','アフター','BAR'];
+  const POSITIONS=['ホール','アフター','BAR','外注'];
   const targets=posFilter?[posFilter]:POSITIONS;
 
   const filtered=staff.filter(s=>{
@@ -540,6 +634,7 @@ function renderCards(){
   });
 
   grid.innerHTML = html || '<div class="empty">該当するスタッフがいません</div>';
+  renderStats();
 }
 
 // ---- Detail modal ----
@@ -555,17 +650,26 @@ function buildDetail(id){
   const photo=s.photo?`<img src="${s.photo}" alt="${s.name}">`:`<span style="font-size:24px;color:var(--muted)">${initials(s.name)}</span>`;
   const pct=Math.round(s.checks.length/20*100);
 
-  // Step road
-  let road='<div class="step-road">';
-  STEPS.forEach((st,i)=>{
+  // Step road — 2段表示
+  function makeStepNodeV(st){
     const done=s.step>st.id, current=s.step===st.id;
-    road+=`<div class="step-node ${done?'done':''} ${current?'current':''}" onclick="setStepDirect(${st.id})" title="${st.label}">
-      <div class="step-dot">${st.id<=7?st.id:'★'}</div>
-      <div class="step-node-label">${st.short}</div>
+    return`<div class="step-node-v ${done?'done':''} ${current?'current':''}" onclick="setStepDirect(${st.id})">
+      <div class="step-dot-v">${st.id<=7?st.id:'★'}</div>
+      <div class="step-node-v-label">${st.label}</div>
     </div>`;
-    if(i<STEPS.length-1) road+=`<div class="step-connector ${s.step>st.id?'done':''}"></div>`;
-  });
-  road+='</div>';
+  }
+  const stepsCol1 = STEPS.filter(st=>st.id<=3);
+  const stepsCol2 = STEPS.filter(st=>st.id>=4);
+  let road=`<div class="step-two-col">
+    <div>
+      <div class="step-col-label">書類・座学</div>
+      <div class="step-road-v">${stepsCol1.map(makeStepNodeV).join('')}</div>
+    </div>
+    <div>
+      <div class="step-col-label">実務研修</div>
+      <div class="step-road-v">${stepsCol2.map(makeStepNodeV).join('')}</div>
+    </div>
+  </div>`;
 
   // Step-based checklist HTML
   function buildClSection(){
@@ -600,7 +704,7 @@ function buildDetail(id){
             ${fileData ? '📎 確認' : '📎 添付'}
           </button>
           <input type="file" id="file-${it.key}" accept=".pdf,image/*" style="display:none" onchange="handleFileUpload(${id},'${it.key}',this)">
-          ${fileData ? `<a class="cl-file-preview" href="${fileData.url}" target="_blank">${fileData.name}</a>` : ''}
+          ${fileData ? `<span class="cl-file-preview" style="cursor:pointer;color:var(--gold)" onclick="openFilePreview('${fileData.url}','${fileData.name}',event)">${fileData.name} 👁</span>` : ''}
         ` : '';
         html += `<label class="cl ${checked?'checked':''}" id="cl-${it.key}">
           <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
@@ -626,8 +730,10 @@ function buildDetail(id){
       <div class="detail-tags">
         <span class="tag">${s.emp}</span>
         <span class="tag">${s.pos}</span>
+        ${calcAge(s.birth)!==null?`<span class="tag">${calcAge(s.birth)}歳</span>`:''}
         <span class="tag">勤続 ${tenure(s.start)}</span>
-        <span class="tag">入社 ${s.start}</span>
+        <span class="tag">入社 ${s.start||'未設定'}</span>
+        ${s.wage?`<span class="tag">時給 ${s.wage}円</span>`:''}
       </div>
     </div>
   </div>
@@ -692,6 +798,7 @@ function setStepDirect(stepId){
   renderCards();
 }
 function toggleCheckNew(id, key, el){
+  if(!isEditable()){el.checked=!el.checked;return;}
   const s=staff.find(x=>x.id===id); if(!s) return;
   if(!s.checks) s.checks={};
   s.checks[key] = el.checked;
@@ -760,6 +867,7 @@ function triggerFileUpload(id, key, e){
   document.getElementById('file-'+key).click();
 }
 async function handleFileUpload(id, key, input){
+  if(!isEditable()) return;
   const s=staff.find(x=>x.id===id); if(!s) return;
   const file=input.files[0]; if(!file) return;
   if(!s.files) s.files={};
@@ -824,6 +932,7 @@ function buildEditForm(s){
       <div class="edit-field"><label>氏名</label><input id="e-name" value="${s.name}"></div>
       <div class="edit-field"><label>読み仮名</label><input id="e-kana" value="${s.kana}"></div>
       <div class="edit-field"><label>入社日</label><input type="date" id="e-start" value="${s.start}"></div>
+      <div class="edit-field"><label>生年月日</label><input type="date" id="e-birth" value="${s.birth||''}"></div>
       <div class="edit-field"><label>雇用形態</label>
         <select id="e-emp">
           <option ${s.emp==='アルバイト'?'selected':''}>アルバイト</option>
@@ -831,11 +940,18 @@ function buildEditForm(s){
           <option ${s.emp==='パート'?'selected':''}>パート</option>
         </select>
       </div>
+      <div class="edit-field"><label>時給</label>
+        <select id="e-wage">
+          <option value="" ${!s.wage?'selected':''}>未設定</option>
+          ${[...Array(8)].map((_,i)=>{const w=1300+i*100; return `<option value="${w}" ${s.wage==w?'selected':''}>${w}円</option>`;}).join('')}
+        </select>
+      </div>
       <div class="edit-field"><label>ポジション</label>
         <select id="e-pos">
           <option ${s.pos==='ホール'?'selected':''}>ホール</option>
           <option ${s.pos==='アフター'?'selected':''}>アフター</option>
           <option ${s.pos==='BAR'?'selected':''}>BAR</option>
+          <option ${s.pos==='外注'?'selected':''}>外注</option>
         </select>
       </div>
       <div class="edit-field full-col"><label>顔写真</label>
@@ -877,6 +993,8 @@ async function saveEdit(id){
     start:   document.getElementById('e-start').value,
     emp:     document.getElementById('e-emp').value,
     pos:     document.getElementById('e-pos').value,
+    birth:   document.getElementById('e-birth').value,
+    wage:    document.getElementById('e-wage').value,
     photo:   photoData,
     updater: document.getElementById('e-updater').value.trim()||'教育担当',
     updated: today(),
@@ -901,11 +1019,18 @@ function buildAddForm(){
       <div class="edit-field"><label>氏名 *</label><input id="a-name" placeholder="山田 花子"></div>
       <div class="edit-field"><label>読み仮名</label><input id="a-kana" placeholder="やまだ はなこ"></div>
       <div class="edit-field"><label>入社日</label><input type="date" id="a-start" value="${today()}"></div>
+      <div class="edit-field"><label>生年月日</label><input type="date" id="a-birth"></div>
       <div class="edit-field"><label>雇用形態</label>
         <select id="a-emp"><option>アルバイト</option><option>社員</option><option>パート</option></select>
       </div>
+      <div class="edit-field"><label>時給</label>
+        <select id="a-wage">
+          <option value="">未設定</option>
+          ${[...Array(8)].map((_,i)=>{const w=1300+i*100; return `<option value="${w}">${w}円</option>`;}).join('')}
+        </select>
+      </div>
       <div class="edit-field"><label>ポジション</label>
-        <select id="a-pos"><option>ホール</option><option>アフター</option><option>BAR</option></select>
+        <select id="a-pos"><option>ホール</option><option>アフター</option><option>BAR</option><option>外注</option></select>
       </div>
       <div class="edit-field full-col"><label>顔写真</label>
         <div class="photo-upload-wrap">
@@ -939,6 +1064,8 @@ async function saveAdd(){
     emp:     document.getElementById('a-emp').value,
     pos:     document.getElementById('a-pos').value,
     photo:   document.getElementById('a-photo-data').value,
+    birth:   document.getElementById('a-birth').value,
+    wage:    document.getElementById('a-wage').value,
     step:1, checks:{}, files:{}, test1:'', test2:'', note:'',
     updated: today(),
     updater: document.getElementById('a-updater').value.trim()||'教育担当',
@@ -952,6 +1079,7 @@ async function saveAdd(){
 
 // ---- Delete ----
 async function deleteStaff(id){
+  if(!isEditable()) return;
   if(!confirm('このスタッフを削除しますか？')) return;
   staff=staff.filter(s=>s.id!==id);
   if(window._deleteDoc) await window._deleteDoc(id);
@@ -991,7 +1119,63 @@ function clearPhoto(previewId, dataId){
   if(clearBtn) clearBtn.style.display = 'none';
 }
 
-renderPills();
+
+// ============ 認証 ============
+const PW_VIEW = 'bekkanstaff1234';
+const PW_EDIT = 'bekkanmaneger1234';
+let authMode = null; // 'view' or 'edit'
+
+function tryAuth(){
+  const val = document.getElementById('auth-input').value;
+  if(val === PW_EDIT){
+    authMode = 'edit';
+    document.getElementById('auth-screen').style.display='none';
+    applyAuthMode();
+  } else if(val === PW_VIEW){
+    authMode = 'view';
+    document.getElementById('auth-screen').style.display='none';
+    applyAuthMode();
+  } else {
+    document.getElementById('auth-err').textContent='パスワードが違います';
+    document.getElementById('auth-input').value='';
+  }
+}
+function applyAuthMode(){
+  // 閲覧モードの場合、編集系ボタンを非表示
+  if(authMode==='view'){
+    document.querySelectorAll('.add-btn,.btn-edit,.btn-delete,.btn-save,.upload-btn,.cl-file-btn').forEach(el=>el.style.display='none');
+    // チェックボックスを無効化
+    document.querySelectorAll('#modal-body input[type=checkbox],#modal-body select,#modal-body textarea').forEach(el=>el.disabled=true);
+  }
+}
+function isEditable(){
+  if(authMode!=='edit'){
+    alert('編集権限がありません。編集用パスワードでログインしてください。');
+    return false;
+  }
+  return true;
+}
+
+// ============ ファイルプレビュー ============
+function openFilePreview(url, name, e){
+  if(e){e.preventDefault();e.stopPropagation();}
+  const overlay=document.getElementById('file-overlay');
+  const content=document.getElementById('file-preview-content');
+  if(url.startsWith('data:image') || url.match(/\.(jpg|jpeg|png|gif|webp)/i)){
+    content.innerHTML=`<img src="${url}" alt="${name}">`;
+  } else {
+    // PDF等はiframeで表示
+    content.innerHTML=`<iframe src="${url}"></iframe>`;
+  }
+  overlay.classList.add('open');
+}
+function closeFilePreview(e){
+  if(e && e.target!==document.getElementById('file-overlay') && !e.target.classList.contains('file-close')) return;
+  document.getElementById('file-overlay').classList.remove('open');
+  document.getElementById('file-preview-content').innerHTML='';
+}
+
+renderStats();
 renderCards();
 </script>
 </body>
