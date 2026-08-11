@@ -206,7 +206,26 @@ select.ctrl:focus{border-color:var(--gold)}
 .cl-bar-fill{height:100%;background:var(--gold);border-radius:3px;transition:width .4s}
 .cl-sub{font-size:12px;color:var(--muted)}
 
-.tests-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tests-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* Test record expanded */
+.test-item{background:var(--paper);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.test-item-header{display:flex;align-items:center;justify-content:space-between}
+.test-name{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.test-result{font-size:14px;font-weight:700}
+.test-result.pass{color:#2E7D32}
+.test-result.fail{color:#C62828}
+.test-result.none{color:var(--muted);font-weight:400;font-size:13px}
+.test-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.test-field label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+.test-field input,.test-field select{width:100%;height:34px;padding:0 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--ink);font-family:inherit}
+.test-field input:focus,.test-field select:focus{outline:none;border-color:var(--gold)}
+.test-score-avg{font-size:12px;color:var(--muted);text-align:right;margin-top:2px}
+.test-file-row{display:flex;align-items:center;gap:8px;margin-top:2px}
+.test-file-btn{font-size:11px;padding:4px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap}
+.test-file-btn:hover{border-color:var(--gold);color:var(--gold)}
+.test-file-btn.uploaded{border-color:#2E7D32;color:#2E7D32;background:#E8F5E9}
+.test-file-name{font-size:11px;color:var(--gold);cursor:pointer;text-decoration:underline}
+
 .test-item{background:var(--paper);border-radius:8px;padding:12px}
 .test-name{font-size:11px;color:var(--muted);margin-bottom:6px}
 .test-result{font-size:15px;font-weight:700}
@@ -751,24 +770,82 @@ function buildDetail(id){
   <div class="detail-section">
     <div class="section-label">テスト記録</div>
     <div class="tests-grid">
+
+      <!-- 5大テスト -->
       <div class="test-item">
-        <div class="test-name">5大テスト</div>
-        <div class="test-result ${t1cls}">${s.test1||'未実施'}</div>
-        <select class="test-select" onchange="updateTest(${id},'test1',this.value)">
-          <option value="" ${!s.test1?'selected':''}>未実施</option>
-          <option ${s.test1==='合格'?'selected':''}>合格</option>
-          <option ${s.test1==='不合格'?'selected':''}>不合格</option>
-        </select>
+        <div class="test-item-header">
+          <span class="test-name">5大テスト</span>
+          <span class="test-result ${t1cls}">${s.test1||'未実施'}</span>
+        </div>
+        <div class="test-row">
+          <div class="test-field">
+            <label>合否</label>
+            <select onchange="updateTestField(${id},'test1',this.value)">
+              <option value="" ${!s.test1?'selected':''}>未実施</option>
+              <option ${s.test1==='合格'?'selected':''}>合格</option>
+              <option ${s.test1==='不合格'?'selected':''}>不合格</option>
+            </select>
+          </div>
+          <div class="test-field">
+            <label>実施日</label>
+            <input type="date" value="${s.test1Date||''}" onchange="updateTestField(${id},'test1Date',this.value)">
+          </div>
+        </div>
+        <div class="test-row">
+          <div class="test-field">
+            <label>点数</label>
+            <input type="number" min="0" max="100" placeholder="0〜100" value="${s.test1Score||''}" onchange="updateTestField(${id},'test1Score',this.value)">
+          </div>
+        </div>
+        <div class="test-file-row">
+          <button class="test-file-btn ${s.testFiles&&s.testFiles.test1?'uploaded':''}" onclick="triggerTestFile(${id},'test1',event)">
+            ${s.testFiles&&s.testFiles.test1?'📎 解答確認':'📎 解答添付'}
+          </button>
+          <input type="file" id="tfile-test1" accept=".pdf,image/*" style="display:none" onchange="handleTestFile(${id},'test1',this)">
+          ${s.testFiles&&s.testFiles.test1?`<span class="test-file-name" onclick="openFilePreview('${s.testFiles.test1.url}','${s.testFiles.test1.name}',event)">${s.testFiles.test1.name}</span>`:''}
+        </div>
       </div>
+
+      <!-- 個室実技テスト -->
       <div class="test-item">
-        <div class="test-name">個室実技テスト</div>
-        <div class="test-result ${t2cls}">${s.test2||'未実施'}</div>
-        <select class="test-select" onchange="updateTest(${id},'test2',this.value)">
-          <option value="" ${!s.test2?'selected':''}>未実施</option>
-          <option ${s.test2==='合格'?'selected':''}>合格</option>
-          <option ${s.test2==='不合格'?'selected':''}>不合格</option>
-        </select>
+        <div class="test-item-header">
+          <span class="test-name">個室実技テスト</span>
+          <span class="test-result ${t2cls}">${s.test2||'未実施'}</span>
+        </div>
+        <div class="test-row">
+          <div class="test-field">
+            <label>合否</label>
+            <select onchange="updateTestField(${id},'test2',this.value)">
+              <option value="" ${!s.test2?'selected':''}>未実施</option>
+              <option ${s.test2==='合格'?'selected':''}>合格</option>
+              <option ${s.test2==='不合格'?'selected':''}>不合格</option>
+            </select>
+          </div>
+          <div class="test-field">
+            <label>実施日</label>
+            <input type="date" value="${s.test2Date||''}" onchange="updateTestField(${id},'test2Date',this.value)">
+          </div>
+        </div>
+        <div class="test-row">
+          <div class="test-field">
+            <label>1回目</label>
+            <input type="number" min="0" max="100" placeholder="点数" value="${s.test2Score1||''}" onchange="updateTestField(${id},'test2Score1',this.value)">
+          </div>
+          <div class="test-field">
+            <label>2回目</label>
+            <input type="number" min="0" max="100" placeholder="点数" value="${s.test2Score2||''}" onchange="updateTestField(${id},'test2Score2',this.value)">
+          </div>
+        </div>
+        ${(s.test2Score1||s.test2Score2)?`<div class="test-score-avg">平均：${Math.round(((Number(s.test2Score1)||0)+(Number(s.test2Score2)||0))/(s.test2Score1&&s.test2Score2?2:1))}点 ${(s.test2Score1&&s.test2Score2&&Math.round(((Number(s.test2Score1))+(Number(s.test2Score2)))/2)>=80)?'✅ 合格ライン':''}（80点以上で合格）</div>`:''}
+        <div class="test-file-row">
+          <button class="test-file-btn ${s.testFiles&&s.testFiles.test2?'uploaded':''}" onclick="triggerTestFile(${id},'test2',event)">
+            ${s.testFiles&&s.testFiles.test2?'📎 解答確認':'📎 解答添付'}
+          </button>
+          <input type="file" id="tfile-test2" accept=".pdf,image/*" style="display:none" onchange="handleTestFile(${id},'test2',this)">
+          ${s.testFiles&&s.testFiles.test2?`<span class="test-file-name" onclick="openFilePreview('${s.testFiles.test2.url}','${s.testFiles.test2.name}',event)">${s.testFiles.test2.name}</span>`:''}
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -900,15 +977,53 @@ async function handleFileUpload(id, key, input){
     document.getElementById('modal-body').innerHTML = buildDetail(id);
   }, allDone ? 1200 : 0);
 }
-function updateTest(id,field,val){
+function updateTestField(id, field, val){
+  if(!isEditable()) return;
   const s=staff.find(x=>x.id===id); if(!s) return;
-  s[field]=val; s.updated=today(); s.updater='教育担当';
+  s[field]=val;
+  s.updated=today(); s.updater='教育担当';
   if(window._setDoc) window._setDoc(id, s);
-  // re-render result badge
-  const cls=val==='合格'?'pass':val==='不合格'?'fail':'none';
-  const results=document.querySelectorAll('.test-result');
-  const idx=field==='test1'?0:1;
-  if(results[idx]){results[idx].className='test-result '+cls; results[idx].textContent=val||'未実施';}
+  // 合否バッジをリアルタイム更新
+  if(field==='test1'||field==='test2'){
+    const cls=val==='合格'?'pass':val==='不合格'?'fail':'none';
+    const badges=document.querySelectorAll('.test-item-header .test-result');
+    const idx=field==='test1'?0:1;
+    if(badges[idx]){badges[idx].className='test-result '+cls;badges[idx].textContent=val||'未実施';}
+  }
+  // 実技テストの平均をリアルタイム更新
+  if(field==='test2Score1'||field==='test2Score2'){
+    const s1=Number(s.test2Score1)||0;
+    const s2=Number(s.test2Score2)||0;
+    const avgEl=document.querySelector('.test-score-avg');
+    if(s.test2Score1||s.test2Score2){
+      const avg=Math.round((s1+s2)/(s.test2Score1&&s.test2Score2?2:1));
+      const pass=s.test2Score1&&s.test2Score2&&avg>=80;
+      if(avgEl) avgEl.textContent=`平均：${avg}点 ${pass?'✅ 合格ライン':''}（80点以上で合格）`;
+    }
+  }
+  renderCards();
+}
+function triggerTestFile(id, key, e){
+  e.preventDefault(); e.stopPropagation();
+  if(!isEditable()) return;
+  document.getElementById('tfile-'+key).click();
+}
+async function handleTestFile(id, key, input){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===id); if(!s) return;
+  const file=input.files[0]; if(!file) return;
+  if(!s.testFiles) s.testFiles={};
+  showSaving();
+  const base64=await new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  s.testFiles[key]={name:file.name, url:base64};
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) await window._setDoc(id, s);
+  hideSaving();
+  document.getElementById('modal-body').innerHTML=buildDetail(id);
   renderCards();
 }
 function updateNote(id,val){
@@ -1122,7 +1237,7 @@ function clearPhoto(previewId, dataId){
 
 // ============ 認証 ============
 const PW_VIEW = 'bekkanstaff1234';
-const PW_EDIT = 'bekkanmaneger1234';
+const PW_EDIT = 'bekkanmanager1234';
 let authMode = null; // 'view' or 'edit'
 
 function tryAuth(){
