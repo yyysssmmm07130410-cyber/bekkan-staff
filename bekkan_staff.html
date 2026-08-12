@@ -795,6 +795,124 @@ function buildDetail(id){
           <input type="file" id="file-${it.key}" accept=".pdf,image/*" style="display:none" onchange="handleFileUpload(${id},'${it.key}',this)">
           ${fileData ? `<span class="cl-file-preview" style="cursor:pointer;color:var(--gold)" onclick="openFilePreview('${fileData.url}','${fileData.name}',event)">${fileData.name} 👁</span>` : ''}
         ` : '';
+
+        // 5大テスト：ネストアコーディオン
+        if(it.key==='test5'){
+          const BIG5=[
+            {key:'hw',    label:'ハウスボトルメニュー'},
+            {key:'bottle',label:'ボトルメニュー'},
+            {key:'grand', label:'グランドメニュー'},
+            {key:'food',  label:'フードメニュー'},
+            {key:'cocktail',label:'女性カクテル'},
+          ];
+          const doneCount=BIG5.filter(t=>s.checks['test5_'+t.key+'_pass']==='合格').length;
+          const allPass=doneCount===BIG5.length;
+          const subItems=BIG5.map(t=>{
+            const tKey='test5_'+t.key;
+            const rec=s.testData&&s.testData[tKey]||{};
+            const pass=s.checks[tKey+'_pass']||'';
+            const passCls=pass==='合格'?'pass':pass==='不合格'?'fail':'none';
+            const tf=s.testFiles&&s.testFiles[tKey];
+            return `<div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--surface-2)">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-size:12px;font-weight:500;color:var(--ink)">${t.label}</span>
+                <span class="test-result ${passCls}" style="font-size:12px">${pass||'未実施'}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+                <div class="test-field"><label>合否</label>
+                  <select onchange="updateBig5(${id},'${tKey}','pass',this.value)">
+                    <option value="" ${!pass?'selected':''}>未実施</option>
+                    <option ${pass==='合格'?'selected':''}>合格</option>
+                    <option ${pass==='不合格'?'selected':''}>不合格</option>
+                  </select>
+                </div>
+                <div class="test-field"><label>実施日</label>
+                  <input type="date" value="${rec.date||''}" onchange="updateBig5(${id},'${tKey}','date',this.value)">
+                </div>
+                <div class="test-field"><label>点数</label>
+                  <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateBig5(${id},'${tKey}','score',this.value)">
+                </div>
+              </div>
+              <div class="test-file-row">
+                <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerBig5File(${id},'${tKey}',event)">
+                  ${tf?'📎 確認':'📎 添付'}
+                </button>
+                <input type="file" id="b5file-${tKey}" accept=".pdf,image/*" style="display:none" onchange="handleBig5File(${id},'${tKey}',this)">
+                ${tf?`<span class="test-file-name" onclick="openFilePreview('${tf.url}','${tf.name}',event)">${tf.name}</span>`:''}
+              </div>
+            </div>`;
+          }).join('');
+          return `<div style="margin-bottom:6px">
+            <div class="acc-section" style="border-color:${allPass?'#2ECC71':'var(--border)'}">
+              <div class="acc-header" onclick="toggleAcc('nest-test5-${id}')">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="acc-title">5大テスト</span>
+                  ${allPass?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+                </div>
+                <div class="acc-meta">
+                  <span class="acc-count">${doneCount}/5 合格</span>
+                  <span class="acc-arrow" id="arr-nest-test5-${id}">▼</span>
+                </div>
+              </div>
+              <div class="acc-body" id="nest-test5-${id}">
+                ${subItems}
+              </div>
+            </div>
+          </div>`;
+        }
+
+        // 個室実技テスト：ネストアコーディオン
+        if(it.key==='practical'){
+          const r1=s.testData&&s.testData['practical_r1']||{};
+          const r2=s.testData&&s.testData['practical_r2']||{};
+          const s1=Number(r1.score)||0, s2=Number(r2.score)||0;
+          const hasBoth=r1.score&&r2.score;
+          const avg=hasBoth?Math.round((s1+s2)/2):0;
+          const isPass=hasBoth&&avg>=80;
+          const tf1=s.testFiles&&s.testFiles['practical_r1'];
+          const tf2=s.testFiles&&s.testFiles['practical_r2'];
+          return `<div style="margin-bottom:6px">
+            <div class="acc-section" style="border-color:${isPass?'#2ECC71':'var(--border)'}">
+              <div class="acc-header" onclick="toggleAcc('nest-prac-${id}')">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="acc-title">個室実技テスト</span>
+                  ${isPass?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 合格</span>':''}
+                </div>
+                <div class="acc-meta">
+                  ${hasBoth?`<span class="acc-count">平均 ${avg}点</span>`:'<span class="acc-count">未実施</span>'}
+                  <span class="acc-arrow" id="arr-nest-prac-${id}">▼</span>
+                </div>
+              </div>
+              <div class="acc-body" id="nest-prac-${id}">
+                ${['r1','r2'].map((round,ri)=>{
+                  const rec=round==='r1'?r1:r2;
+                  const tf=round==='r1'?tf1:tf2;
+                  const rKey='practical_'+round;
+                  return `<div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--surface-2)">
+                    <div style="font-size:12px;font-weight:500;color:var(--ink);margin-bottom:8px">第${ri+1}回</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+                      <div class="test-field"><label>実施日</label>
+                        <input type="date" value="${rec.date||''}" onchange="updatePractical(${id},'${rKey}','date',this.value)">
+                      </div>
+                      <div class="test-field"><label>点数</label>
+                        <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updatePractical(${id},'${rKey}','score',this.value)">
+                      </div>
+                    </div>
+                    <div class="test-file-row">
+                      <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerPracticalFile(${id},'${rKey}',event)">
+                        ${tf?'📎 確認':'📎 添付'}
+                      </button>
+                      <input type="file" id="pracfile-${rKey}" accept=".pdf,image/*" style="display:none" onchange="handlePracticalFile(${id},'${rKey}',this)">
+                      ${tf?`<span class="test-file-name" onclick="openFilePreview('${tf.url}','${tf.name}',event)">${tf.name}</span>`:''}
+                    </div>
+                  </div>`;
+                }).join('')}
+                ${hasBoth?`<div class="test-score-avg" style="margin-top:4px">平均：${avg}点 ${isPass?'✅ 合格':'❌ 不合格'}（80点以上で合格）</div>`:''}
+              </div>
+            </div>
+          </div>`;
+        }
+
         return `<label class="cl ${checked?'checked':''}" id="cl-${it.key}">
           <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
           <span class="cl-label">${it.label}</span>
@@ -848,8 +966,6 @@ function buildDetail(id){
   }
   const clHTML = buildClSection();
 
-  const t1cls=s.test1==='合格'?'pass':s.test1==='不合格'?'fail':'none';
-  const t2cls=s.test2==='合格'?'pass':s.test2==='不合格'?'fail':'none';
 
   return`
   <div class="detail-hero">
@@ -879,85 +995,8 @@ function buildDetail(id){
   </div>
 
   <div class="detail-section">
-    <div class="section-label">テスト記録</div>
-    <div class="tests-grid">
-
-      <!-- 5大テスト -->
-      <div class="test-item">
-        <div class="test-item-header">
-          <span class="test-name">5大テスト</span>
-          <span class="test-result ${t1cls}">${s.test1||'未実施'}</span>
-        </div>
-        <div class="test-row">
-          <div class="test-field">
-            <label>合否</label>
-            <select onchange="updateTestField(${id},'test1',this.value)">
-              <option value="" ${!s.test1?'selected':''}>未実施</option>
-              <option ${s.test1==='合格'?'selected':''}>合格</option>
-              <option ${s.test1==='不合格'?'selected':''}>不合格</option>
-            </select>
-          </div>
-          <div class="test-field">
-            <label>実施日</label>
-            <input type="date" value="${s.test1Date||''}" onchange="updateTestField(${id},'test1Date',this.value)">
-          </div>
-        </div>
-        <div class="test-row">
-          <div class="test-field">
-            <label>点数</label>
-            <input type="number" min="0" max="100" placeholder="0〜100" value="${s.test1Score||''}" onchange="updateTestField(${id},'test1Score',this.value)">
-          </div>
-        </div>
-        <div class="test-file-row">
-          <button class="test-file-btn ${s.testFiles&&s.testFiles.test1?'uploaded':''}" onclick="triggerTestFile(${id},'test1',event)">
-            ${s.testFiles&&s.testFiles.test1?'📎 解答確認':'📎 解答添付'}
-          </button>
-          <input type="file" id="tfile-test1" accept=".pdf,image/*" style="display:none" onchange="handleTestFile(${id},'test1',this)">
-          ${s.testFiles&&s.testFiles.test1?`<span class="test-file-name" onclick="openFilePreview('${s.testFiles.test1.url}','${s.testFiles.test1.name}',event)">${s.testFiles.test1.name}</span>`:''}
-        </div>
-      </div>
-
-      <!-- 個室実技テスト -->
-      <div class="test-item">
-        <div class="test-item-header">
-          <span class="test-name">個室実技テスト</span>
-          <span class="test-result ${t2cls}">${s.test2||'未実施'}</span>
-        </div>
-        <div class="test-row">
-          <div class="test-field">
-            <label>合否</label>
-            <select onchange="updateTestField(${id},'test2',this.value)">
-              <option value="" ${!s.test2?'selected':''}>未実施</option>
-              <option ${s.test2==='合格'?'selected':''}>合格</option>
-              <option ${s.test2==='不合格'?'selected':''}>不合格</option>
-            </select>
-          </div>
-          <div class="test-field">
-            <label>実施日</label>
-            <input type="date" value="${s.test2Date||''}" onchange="updateTestField(${id},'test2Date',this.value)">
-          </div>
-        </div>
-        <div class="test-row">
-          <div class="test-field">
-            <label>1回目</label>
-            <input type="number" min="0" max="100" placeholder="点数" value="${s.test2Score1||''}" onchange="updateTestField(${id},'test2Score1',this.value)">
-          </div>
-          <div class="test-field">
-            <label>2回目</label>
-            <input type="number" min="0" max="100" placeholder="点数" value="${s.test2Score2||''}" onchange="updateTestField(${id},'test2Score2',this.value)">
-          </div>
-        </div>
-        ${(s.test2Score1||s.test2Score2)?`<div class="test-score-avg">平均：${Math.round(((Number(s.test2Score1)||0)+(Number(s.test2Score2)||0))/(s.test2Score1&&s.test2Score2?2:1))}点 ${(s.test2Score1&&s.test2Score2&&Math.round(((Number(s.test2Score1))+(Number(s.test2Score2)))/2)>=80)?'✅ 合格ライン':''}（80点以上で合格）</div>`:''}
-        <div class="test-file-row">
-          <button class="test-file-btn ${s.testFiles&&s.testFiles.test2?'uploaded':''}" onclick="triggerTestFile(${id},'test2',event)">
-            ${s.testFiles&&s.testFiles.test2?'📎 解答確認':'📎 解答添付'}
-          </button>
-          <input type="file" id="tfile-test2" accept=".pdf,image/*" style="display:none" onchange="handleTestFile(${id},'test2',this)">
-          ${s.testFiles&&s.testFiles.test2?`<span class="test-file-name" onclick="openFilePreview('${s.testFiles.test2.url}','${s.testFiles.test2.name}',event)">${s.testFiles.test2.name}</span>`:''}
-        </div>
-      </div>
-
-    </div>
+    <div class="section-label">勤怠</div>
+    <div style="padding:16px 0;text-align:center;color:var(--muted);font-size:13px">勤怠データ連携は今後実装予定</div>
   </div>
 
   <div class="detail-section">
@@ -993,6 +1032,93 @@ function toggleAcc(id){
   const isOpen=body.classList.contains('open');
   body.classList.toggle('open',!isOpen);
   if(arr) arr.classList.toggle('open',!isOpen);
+}
+
+// ---- 5大テスト ----
+function updateBig5(staffId, tKey, field, val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  if(!s.testData) s.testData={};
+  if(!s.testData[tKey]) s.testData[tKey]={};
+  if(field==='pass'){
+    if(!s.checks) s.checks={};
+    s.checks[tKey+'_pass']=val;
+    // 5種すべて合格でtest5を自動完了
+    const BIG5=['hw','bottle','grand','food','cocktail'];
+    const allPass=BIG5.every(k=>s.checks['test5_'+k+'_pass']==='合格');
+    if(allPass) s.checks['test5']=true;
+  } else {
+    s.testData[tKey][field]=val;
+  }
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(staffId, s);
+  renderCards();
+  // 合否バッジ更新のためモーダル再描画
+  setTimeout(()=>{ document.getElementById('modal-body').innerHTML=buildDetail(staffId); },100);
+}
+function triggerBig5File(staffId, tKey, e){
+  e.preventDefault(); e.stopPropagation();
+  if(!isEditable()) return;
+  document.getElementById('b5file-'+tKey).click();
+}
+async function handleBig5File(staffId, tKey, input){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  const file=input.files[0]; if(!file) return;
+  if(!s.testFiles) s.testFiles={};
+  showSaving();
+  const base64=await new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  s.testFiles[tKey]={name:file.name, url:base64};
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) await window._setDoc(staffId, s);
+  hideSaving();
+  document.getElementById('modal-body').innerHTML=buildDetail(staffId);
+}
+
+// ---- 個室実技テスト ----
+function updatePractical(staffId, rKey, field, val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  if(!s.testData) s.testData={};
+  if(!s.testData[rKey]) s.testData[rKey]={};
+  s.testData[rKey][field]=val;
+  s.updated=today(); s.updater='教育担当';
+  // 平均80点以上でpracticalを自動完了
+  const r1=s.testData['practical_r1']||{};
+  const r2=s.testData['practical_r2']||{};
+  if(r1.score&&r2.score){
+    const avg=Math.round((Number(r1.score)+Number(r2.score))/2);
+    if(avg>=80) s.checks['practical']=true;
+  }
+  if(window._setDoc) window._setDoc(staffId, s);
+  renderCards();
+  setTimeout(()=>{ document.getElementById('modal-body').innerHTML=buildDetail(staffId); },100);
+}
+function triggerPracticalFile(staffId, rKey, e){
+  e.preventDefault(); e.stopPropagation();
+  if(!isEditable()) return;
+  document.getElementById('pracfile-'+rKey).click();
+}
+async function handlePracticalFile(staffId, rKey, input){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  const file=input.files[0]; if(!file) return;
+  if(!s.testFiles) s.testFiles={};
+  showSaving();
+  const base64=await new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  s.testFiles[rKey]={name:file.name, url:base64};
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) await window._setDoc(staffId, s);
+  hideSaving();
+  document.getElementById('modal-body').innerHTML=buildDetail(staffId);
 }
 function updateTrainRecord(staffId, key, field, val){
   if(!isEditable()) return;
