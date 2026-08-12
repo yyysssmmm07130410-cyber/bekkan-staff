@@ -357,6 +357,25 @@ select.ctrl:focus{border-color:var(--gold)}
 .step-node-v-label{font-size:11px;color:var(--muted);line-height:1.2}
 .step-node-v.current .step-node-v-label{color:var(--ink);font-weight:600}
 .step-node-v.done .step-node-v-label{color:var(--ink)}
+
+/* Accordion checklist */
+.acc-section{border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px}
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--paper);user-select:none}
+.acc-header:hover{background:var(--gold-light)}
+.acc-title{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.acc-meta{display:flex;align-items:center;gap:8px}
+.acc-count{font-size:11px;color:var(--muted)}
+.acc-arrow{font-size:12px;color:var(--muted);transition:transform .2s}
+.acc-arrow.open{transform:rotate(180deg)}
+.acc-body{display:none;padding:10px 14px;background:var(--surface)}
+.acc-body.open{display:block}
+
+/* 研修記録フォーム */
+.train-record{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;padding:8px;background:var(--paper);border-radius:8px}
+.train-field label{font-size:10px;color:var(--muted);display:block;margin-bottom:2px}
+.train-field input{width:100%;height:30px;padding:0 8px;border-radius:6px;border:0.5px solid var(--border);background:var(--surface);font-size:12px;color:var(--ink);font-family:inherit}
+.train-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:var(--bg-accent);color:var(--text-accent);display:inline-block;margin-bottom:4px}
+.lounge-note{font-size:10px;color:var(--text-muted);margin-bottom:6px;padding:4px 8px;background:var(--paper);border-radius:6px;border-left:2px solid var(--gold)}
 </style>
 </head>
 <body>
@@ -428,8 +447,9 @@ const STEPS=[
   {id:4,label:'ランナー',short:'RUN'},
   {id:5,label:'ラウンジ',short:'LNG'},
   {id:6,label:'個室',short:'個室'},
-  {id:7,label:'習熟確認',short:'確認'},
-  {id:8,label:'GOAL',short:'GOAL'},
+  {id:7,label:'全個室可',short:'全個室'},
+  {id:8,label:'ポーター',short:'PTR'},
+  {id:9,label:'センター',short:'CTR'},
 ];
 
 // ステップ別チェックリスト定義
@@ -458,19 +478,39 @@ const STEP_CHECKS = {
   5: [
     { key:'lounge_test',   label:'ラウンジウェイターマニュアルテスト', file:false },
     { key:'waiter_sheet',  label:'ウェイター業務チェックシート',       file:false },
-    { key:'lounge_train',  label:'ラウンジ研修',                     file:false },
+    // ラウンジ研修3種（いずれか1つでOK）
+    { key:'lounge_top',    label:'ラウンジ研修 トップ',   file:false, lounge:true },
+    { key:'lounge_pr',     label:'ラウンジ研修 PR',       file:false, lounge:true },
+    { key:'lounge_k',      label:'ラウンジ研修 K1〜6',    file:false, lounge:true },
   ],
   6: [
     { key:'room_test',    label:'個室ウェイターマニュアルテスト',   file:false },
     { key:'hall_test',    label:'ホールスタッフ実務対応テスト',     file:false },
     { key:'room_sheet',   label:'個室ウェイターチェックシート',     file:false },
-    { key:'room_train',   label:'個室研修 (R9・A1〜SW)',           file:false },
+    // 個室研修7種（すべて完了）
+    { key:'room_r9',      label:'個室研修 R9',         file:false, room:true },
+    { key:'room_a1jr1',   label:'個室研修 A1・Jr.1',   file:false, room:true },
+    { key:'room_a2a3',    label:'個室研修 A2・A3',     file:false, room:true },
+    { key:'room_jr2w',    label:'個室研修 Jr.2・W',    file:false, room:true },
+    { key:'room_sw',      label:'個室研修 SW',          file:false, room:true },
+    { key:'room_k9',      label:'個室研修 K9',         file:false, room:true },
+    { key:'room_mamo',    label:'個室研修 MA・MO',     file:false, room:true },
   ],
   7: [
     { key:'practical',  label:'個室実技テスト', file:false },
   ],
   8: [],
+  9: [],
 };
+
+// ラウンジ研修：いずれか1種完了でlounge_trainを完了扱いにする
+function loungeTrainDone(s){
+  return ['lounge_top','lounge_pr','lounge_k'].some(k=>s.checks[k]);
+}
+// 個室研修：すべて完了でroom_trainを完了扱い
+function roomTrainDone(s){
+  return ['room_r9','room_a1jr1','room_a2a3','room_jr2w','room_sw','room_k9','room_mamo'].every(k=>s.checks[k]);
+}
 // 全ステップの総チェック数
 function totalChecks(s){ return Object.values(STEP_CHECKS).flat().length; }
 // スタッフの全チェック完了数
@@ -550,6 +590,24 @@ function tenure(startStr){
 }
 
 // ---- Step color ----
+
+// ---- ランクカラー ----
+function rankBar(step){
+  const bronze='linear-gradient(180deg,#E8B88A 0%,#CD7F32 40%,#A0522D 100%)';
+  const silver='linear-gradient(180deg,#E8E8E8 0%,#A8A9AD 40%,#6B6B70 100%)';
+  const gold  ='linear-gradient(180deg,#F5E27A 0%,#C9A84C 40%,#8B6914 100%)';
+  const emerald='linear-gradient(180deg,#A8F0C8 0%,#2ECC71 30%,#1A7A43 60%,#A8F0C8 100%)';
+  const blue  ='linear-gradient(180deg,#A8D4F8 0%,#3A8FD6 30%,#1565C0 60%,#A8D4F8 100%)';
+  const purple='linear-gradient(180deg,#C4BEFF 0%,#7F77DD 30%,#3C3489 60%,#C4BEFF 100%)';
+  const black ='linear-gradient(180deg,#888880 0%,#2C2C2A 30%,#111110 60%,#888880 100%)';
+  if(step<=3) return bronze;
+  if(step===4) return silver;
+  if(step===5) return gold;
+  if(step===6) return emerald;
+  if(step===7) return blue;
+  if(step===8) return purple;
+  return black;
+}
 function stepStyle(sid){
   const map={1:'var(--step1)',2:'var(--step2)',3:'var(--step3)',4:'var(--step4)',5:'var(--step5)',6:'var(--step6)',7:'var(--step7)',8:'var(--goal)'};
   const tc={1:'var(--step1t)',2:'var(--step2t)',3:'var(--step3t)',4:'var(--step4t)',5:'var(--step5t)',6:'var(--step6t)',7:'var(--step7t)',8:'var(--goalt)'};
@@ -563,14 +621,14 @@ function renderStats(){
   const el=document.getElementById('stats-bar');
   if(!el) return;
   const total=staff.length;
-  const goal=staff.filter(s=>s.step>=8).length;
+  const goal=staff.filter(s=>s.step>=7).length;
   const room=staff.filter(s=>s.step>=6).length;
   const lounge=staff.filter(s=>s.step>=5).length;
   const runner=staff.filter(s=>s.step>=4).length;
   const bar=staff.filter(s=>s.pos==='BAR').length;
   el.innerHTML=`
     <div class="stat-chip"><div class="stat-num">${total}</div><div class="stat-label">在籍</div></div>
-    <div class="stat-chip gold"><div class="stat-num">${goal}</div><div class="stat-label">GOAL</div></div>
+    <div class="stat-chip gold"><div class="stat-num">${goal}</div><div class="stat-label">全個室可</div></div>
     <div class="stat-chip"><div class="stat-num">${room}</div><div class="stat-label">個室</div></div>
     <div class="stat-chip"><div class="stat-num">${lounge}</div><div class="stat-label">ラウンジ</div></div>
     <div class="stat-chip"><div class="stat-num">${runner}</div><div class="stat-label">ランナー</div></div>
@@ -591,6 +649,9 @@ function sectionBadges(s){
   if(s.step>=4) badges+=`<span class="sec-badge sec-runner">ランナー</span>`;
   if(s.step>=5) badges+=`<span class="sec-badge sec-lounge">ラウンジ</span>`;
   if(s.step>=6) badges+=`<span class="sec-badge sec-room">個室</span>`;
+  if(s.step>=7) badges+=`<span class="sec-badge" style="background:#E6F1FB;color:#1565C0">全個室可</span>`;
+  if(s.step>=8) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">ポーター</span>`;
+  if(s.step>=9) badges+=`<span class="sec-badge" style="background:#2C2C2A;color:#F1EFE8">センター</span>`;
   if(s.pos==='BAR') badges+=`<span class="sec-badge sec-bar">BAR</span>`;
   return badges;
 }
@@ -606,14 +667,20 @@ function makeCard(s){
   const badges=sectionBadges(s);
   const {bg,c}=stepStyle(s.step);
   const st=STEPS.find(x=>x.id===s.step)||STEPS[0];
-  return`<div class="card" onclick="openDetail(${s.id})">
-    <div class="card-photo">${photo}</div>
-    <div class="card-body">
-      <div class="card-name">${s.name}</div>
-      <div class="card-age">${[ageStr, tenureStr?'勤続'+tenureStr:''].filter(Boolean).join(' · ')}</div>
-      ${badges?`<div class="card-sections">${badges}</div>`:'<div style="height:4px"></div>'}
-      <div class="card-pct">${totalPct}%</div>
-      <div class="step-track"><div class="step-fill" style="width:${totalPct}%"></div></div>
+  const bar=rankBar(s.step);
+  const stLabel=st.id<=9?`STEP${st.id} ${st.label}`:st.label;
+  return`<div class="card" onclick="openDetail(${s.id})" style="display:flex;flex-direction:row">
+    <div style="width:6px;flex-shrink:0;background:${bar}"></div>
+    <div style="flex:1;overflow:hidden">
+      <div class="card-photo">${photo}</div>
+      <div class="card-body">
+        <div class="card-name">${s.name}</div>
+        <div class="card-age">${[ageStr, tenureStr?'勤続'+tenureStr:''].filter(Boolean).join(' · ')}</div>
+        ${badges?`<div class="card-sections">${badges}</div>`:'<div style="height:4px"></div>'}
+        <div class="card-pct">${totalPct}%</div>
+        <div class="step-track"><div class="step-fill" style="width:${totalPct}%;background:${bar.includes('gradient')?bar:'var(--gold'})"></div></div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${stLabel}</div>
+      </div>
     </div>
   </div>`;
 }
@@ -690,7 +757,7 @@ function buildDetail(id){
     </div>
   </div>`;
 
-  // Step-based checklist HTML
+  // Step-based checklist HTML (アコーディオン形式)
   function buildClSection(){
     const stepItems2 = STEP_CHECKS[s.step] || [];
     const stepDone2  = stepItems2.filter(it=>s.checks[it.key]).length;
@@ -699,22 +766,25 @@ function buildDetail(id){
     let html = `<div class="cl-overall">
       <div class="cl-overall-pct">${pct2}%</div>
       <div class="cl-overall-right">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">STEP ${s.step<=7?s.step:''} ${st2.label} の進捗</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px">STEP ${s.step} ${st2.label} の進捗</div>
         <div class="cl-overall-bar"><div class="cl-overall-fill" id="cl-fill" style="width:${pct2}%"></div></div>
         <div class="cl-overall-sub" id="cl-sub">${stepDone2} / ${stepItems2.length} 項目完了</div>
       </div>
     </div>`;
+
     STEPS.forEach(st=>{
       const items = STEP_CHECKS[st.id];
       if(!items || items.length===0) return;
-      const stepDone = items.filter(it=>s.checks[it.key]).length;
-      html += `<div class="cl-step-section">
-        <div class="cl-step-header">
-          <span class="cl-step-title">STEP ${st.id<=7?st.id:''} ${st.label}</span>
-          <span class="cl-step-count">${stepDone}/${items.length}</span>
-        </div>
-        <div class="cl-list">`;
-      items.forEach(it=>{
+      const isCurrent = st.id === s.step;
+      const stepDoneCount = items.filter(it=>s.checks[it.key]).length;
+      const accId = 'acc-'+st.id;
+
+      // ラウンジ・個室研修のグループ分け
+      const normalItems = items.filter(it=>!it.lounge && !it.room);
+      const loungeItems = items.filter(it=>it.lounge);
+      const roomItems   = items.filter(it=>it.room);
+
+      function renderItem(it){
         const checked = !!s.checks[it.key];
         const fileData = s.files && s.files[it.key];
         const uploadedCls = fileData ? ' uploaded' : '';
@@ -725,13 +795,54 @@ function buildDetail(id){
           <input type="file" id="file-${it.key}" accept=".pdf,image/*" style="display:none" onchange="handleFileUpload(${id},'${it.key}',this)">
           ${fileData ? `<span class="cl-file-preview" style="cursor:pointer;color:var(--gold)" onclick="openFilePreview('${fileData.url}','${fileData.name}',event)">${fileData.name} 👁</span>` : ''}
         ` : '';
-        html += `<label class="cl ${checked?'checked':''}" id="cl-${it.key}">
+        return `<label class="cl ${checked?'checked':''}" id="cl-${it.key}">
           <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
           <span class="cl-label">${it.label}</span>
           ${filePart}
         </label>`;
-      });
-      html += `</div></div>`;
+      }
+
+      function renderTrainItem(it, note){
+        const checked = !!s.checks[it.key];
+        const rec = s.trainRecords && s.trainRecords[it.key] || {};
+        return `<div style="margin-bottom:8px">
+          <label class="cl ${checked?'checked':''}" id="cl-${it.key}">
+            <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+            <span class="cl-label">${it.label}</span>
+          </label>
+          <div class="train-record">
+            <div class="train-field"><label>完了日</label><input type="date" value="${rec.date||''}" onchange="updateTrainRecord(${id},'${it.key}','date',this.value)"></div>
+            <div class="train-field"><label>承認者</label><input type="text" placeholder="山本 主任" value="${rec.approver||''}" onchange="updateTrainRecord(${id},'${it.key}','approver',this.value)"></div>
+          </div>
+        </div>`;
+      }
+
+      let bodyHtml = '<div class="cl-list">';
+      // 通常項目
+      normalItems.forEach(it=>{ bodyHtml += renderItem(it); });
+      // ラウンジ研修
+      if(loungeItems.length){
+        bodyHtml += `<div class="lounge-note">いずれか1か所の研修完了でOK</div>`;
+        loungeItems.forEach(it=>{ bodyHtml += renderTrainItem(it); });
+      }
+      // 個室研修
+      if(roomItems.length){
+        roomItems.forEach(it=>{ bodyHtml += renderTrainItem(it); });
+      }
+      bodyHtml += '</div>';
+
+      html += `<div class="acc-section">
+        <div class="acc-header" onclick="toggleAcc('${accId}')">
+          <span class="acc-title">STEP${st.id} ${st.label}</span>
+          <div class="acc-meta">
+            <span class="acc-count">${stepDoneCount}/${items.length}</span>
+            <span class="acc-arrow ${isCurrent?'open':''}" id="arr-${accId}">▼</span>
+          </div>
+        </div>
+        <div class="acc-body ${isCurrent?'open':''}" id="${accId}">
+          ${bodyHtml}
+        </div>
+      </div>`;
     });
     return html;
   }
@@ -874,6 +985,24 @@ function setStepDirect(stepId){
   document.getElementById('modal-body').innerHTML=buildDetail(currentId);
   renderCards();
 }
+
+function toggleAcc(id){
+  const body=document.getElementById(id);
+  const arr=document.getElementById('arr-'+id);
+  if(!body) return;
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  if(arr) arr.classList.toggle('open',!isOpen);
+}
+function updateTrainRecord(staffId, key, field, val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  if(!s.trainRecords) s.trainRecords={};
+  if(!s.trainRecords[key]) s.trainRecords[key]={};
+  s.trainRecords[key][field]=val;
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(staffId, s);
+}
 function toggleCheckNew(id, key, el){
   if(!isEditable()){el.checked=!el.checked;return;}
   const s=staff.find(x=>x.id===id); if(!s) return;
@@ -888,6 +1017,14 @@ function toggleCheckNew(id, key, el){
   // 現STEPの進捗を更新
   updateStepProgress(s);
 
+  // 5大テスト自動完了チェック
+  const BIG5=['hw','bottle','grand','food','cocktail'];
+  if(BIG5.some(k=>k===key)){
+    const all5done=BIG5.every(k=>s.checks['test5_'+k+'_pass']);
+    if(all5done && !s.checks['test5']){
+      s.checks['test5']=true;
+    }
+  }
   // 現STEPの全項目が埋まったら自動昇格
   const stepItems = STEP_CHECKS[s.step] || [];
   const allDone = stepItems.length > 0 && stepItems.every(it => s.checks[it.key]);
@@ -917,7 +1054,7 @@ function updateStepProgress(s){
 
 function showStepUpBanner(nextStep){
   const st = STEPS.find(x=>x.id===nextStep);
-  const label = nextStep===8 ? '🏆 GOAL 達成！' : 'STEP '+nextStep+' '+st.label+' へ進みました';
+  const label = 'STEP '+nextStep+' '+st.label+' へ進みました！';
   const banner = document.createElement('div');
   banner.id = 'stepup-banner';
   banner.innerHTML = label;
