@@ -861,6 +861,53 @@ function buildDetail(id){
           </div>`;
         }
 
+        // ホールスタッフ実務対応テスト：ネストアコーディオン
+        if(it.key==='hall_test'){
+          const rec=s.testData&&s.testData['hall_test']||{};
+          const tf=s.testFiles&&s.testFiles['hall_test'];
+          const score=Number(rec.score)||0;
+          const hasData=rec.date||rec.score;
+          return `<div style="margin-bottom:6px">
+            <div class="acc-section" style="border-color:${hasData?'#3A8FD6':'var(--border)'}">
+              <div class="acc-header" onclick="toggleAcc('nest-hall-${id}')">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="acc-title">ホールスタッフ実務対応テスト</span>
+                  ${s.checks['hall_test']?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+                </div>
+                <div class="acc-meta">
+                  ${rec.score?`<span class="acc-count">${rec.score}点</span>`:'<span class="acc-count">未実施</span>'}
+                  <span class="acc-arrow" id="arr-nest-hall-${id}">▼</span>
+                </div>
+              </div>
+              <div class="acc-body" id="nest-hall-${id}">
+                <div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;background:var(--surface-2)">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                    <div class="test-field"><label>実施日</label>
+                      <input type="date" value="${rec.date||''}" onchange="updateHallTest(${id},'date',this.value)">
+                    </div>
+                    <div class="test-field"><label>点数</label>
+                      <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateHallTest(${id},'score',this.value)">
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                    <label class="cl ${s.checks['hall_test']?'checked':''}" style="margin:0">
+                      <input type="checkbox" onchange="toggleCheckNew(${id},'hall_test',this)" ${s.checks['hall_test']?'checked':''}> 
+                      <span class="cl-label">完了</span>
+                    </label>
+                  </div>
+                  <div class="test-file-row">
+                    <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerHallTestFile(${id},event)">
+                      ${tf?'📎 確認':'📎 答案添付'}
+                    </button>
+                    <input type="file" id="hallfile-hall_test" accept=".pdf,image/*" style="display:none" onchange="handleHallTestFile(${id},this)">
+                    ${tf?`<span class="test-file-name" onclick="openFilePreview('${tf.url}','${tf.name}',event)">${tf.name}</span>`:''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }
+
         // 個室実技テスト：ネストアコーディオン
         if(it.key==='practical'){
           const r1=s.testData&&s.testData['practical_r1']||{};
@@ -1079,6 +1126,40 @@ async function handleBig5File(staffId, tKey, input){
   document.getElementById('modal-body').innerHTML=buildDetail(staffId);
 }
 
+
+// ---- ホールスタッフ実務対応テスト ----
+function updateHallTest(staffId, field, val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  if(!s.testData) s.testData={};
+  if(!s.testData['hall_test']) s.testData['hall_test']={};
+  s.testData['hall_test'][field]=val;
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(staffId, s);
+  setTimeout(()=>{ document.getElementById('modal-body').innerHTML=buildDetail(staffId); },100);
+}
+function triggerHallTestFile(staffId, e){
+  e.preventDefault(); e.stopPropagation();
+  if(!isEditable()) return;
+  document.getElementById('hallfile-hall_test').click();
+}
+async function handleHallTestFile(staffId, input){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  const file=input.files[0]; if(!file) return;
+  if(!s.testFiles) s.testFiles={};
+  showSaving();
+  const base64=await new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  s.testFiles['hall_test']={name:file.name, url:base64};
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) await window._setDoc(staffId, s);
+  hideSaving();
+  document.getElementById('modal-body').innerHTML=buildDetail(staffId);
+}
 // ---- 個室実技テスト ----
 function updatePractical(staffId, rKey, field, val){
   if(!isEditable()) return;
