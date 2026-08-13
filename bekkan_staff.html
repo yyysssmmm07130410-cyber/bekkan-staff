@@ -476,7 +476,7 @@ const STEP_CHECKS = {
     { key:'test5',        label:'5大テスト',               file:false },
   ],
   5: [
-    { key:'lounge_test',   label:'ラウンジウェイターマニュアルテスト', file:false },
+    { key:'lounge_test',   label:'ラウンジウェイターマニュアルテスト', file:false, testType:'simple' },
     { key:'waiter_sheet',  label:'ウェイター業務チェックシート',       file:false },
     // ラウンジ研修3種（いずれか1つでOK）
     { key:'lounge_top',    label:'ラウンジ研修 トップ',   file:false, lounge:true },
@@ -484,32 +484,36 @@ const STEP_CHECKS = {
     { key:'lounge_k',      label:'ラウンジ研修 K1〜6',    file:false, lounge:true },
   ],
   6: [
-    { key:'room_test',    label:'個室ウェイターマニュアルテスト',   file:false },
-    { key:'hall_test',    label:'ホールスタッフ実務対応テスト',     file:false },
-    { key:'room_sheet',   label:'個室ウェイターチェックシート',     file:false },
-    // 個室研修7種（すべて完了）
-    { key:'room_r9',      label:'個室研修 R9',         file:false, room:true },
-    { key:'room_a1jr1',   label:'個室研修 A1・Jr.1',   file:false, room:true },
-    { key:'room_a2a3',    label:'個室研修 A2・A3',     file:false, room:true },
-    { key:'room_jr2w',    label:'個室研修 Jr.2・W',    file:false, room:true },
-    { key:'room_sw',      label:'個室研修 SW',          file:false, room:true },
-    { key:'room_k9',      label:'個室研修 K9',         file:false, room:true },
-    { key:'room_mamo',    label:'個室研修 MA・MO',     file:false, room:true },
+    { key:'room_test',   label:'個室ウェイターマニュアルテスト', file:false, testType:'simple' },
+    { key:'hall_test',   label:'ホールスタッフ実務対応テスト',   file:false, testType:'simple' },
+    { key:'room_sheet',  label:'個室ウェイターチェックシート',   file:false },
+    { key:'room_train',  label:'個室研修',                      file:false, roomGroup:true },
   ],
   7: [
-    { key:'practical',  label:'個室実技テスト', file:false },
+    { key:'practical',  label:'個室実技テスト', file:false, testType:'practical' },
   ],
   8: [],
   9: [],
 };
 
+
+// 個室研修7種
+const ROOM_ITEMS = [
+  {key:'room_r9',    label:'R9'},
+  {key:'room_a1jr1', label:'A1・Jr.1'},
+  {key:'room_a2a3',  label:'A2・A3'},
+  {key:'room_jr2w',  label:'Jr.2・W'},
+  {key:'room_sw',    label:'SW'},
+  {key:'room_k9',    label:'K9'},
+  {key:'room_mamo',  label:'MA・MO'},
+];
 // ラウンジ研修：いずれか1種完了でlounge_trainを完了扱いにする
 function loungeTrainDone(s){
   return ['lounge_top','lounge_pr','lounge_k'].some(k=>s.checks[k]);
 }
 // 個室研修：すべて完了でroom_trainを完了扱い
 function roomTrainDone(s){
-  return ['room_r9','room_a1jr1','room_a2a3','room_jr2w','room_sw','room_k9','room_mamo'].every(k=>s.checks[k]);
+  return ROOM_ITEMS.every(it=>s.checks[it.key]);
 }
 // 全ステップの総チェック数
 function totalChecks(s){ return Object.values(STEP_CHECKS).flat().length; }
@@ -784,7 +788,98 @@ function buildDetail(id){
       const loungeItems = items.filter(it=>it.lounge);
       const roomItems   = items.filter(it=>it.room);
 
+      function renderSimpleTest(it){
+        // シンプルテストアコーディオン（実施日・点数・答案）
+        const rec=s.testData&&s.testData[it.key]||{};
+        const tf=s.testFiles&&s.testFiles[it.key];
+        const hasData=rec.date||rec.score;
+        const checked=!!s.checks[it.key];
+        return `<div style="margin-bottom:6px">
+          <div class="acc-section" style="border-color:${checked?'#2ECC71':'var(--border)'}">
+            <div class="acc-header" onclick="toggleAcc('nest-${it.key}-${id}')">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="acc-title">${it.label}</span>
+                ${checked?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+              </div>
+              <div class="acc-meta">
+                ${rec.score?`<span class="acc-count">${rec.score}点</span>`:'<span class="acc-count">未実施</span>'}
+                <span class="acc-arrow" id="arr-nest-${it.key}-${id}">▼</span>
+              </div>
+            </div>
+            <div class="acc-body" id="nest-${it.key}-${id}">
+              <div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;background:var(--surface-2)">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                  <div class="test-field"><label>実施日</label>
+                    <input type="date" value="${rec.date||''}" onchange="updateSimpleTest(${id},'${it.key}','date',this.value)">
+                  </div>
+                  <div class="test-field"><label>点数</label>
+                    <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateSimpleTest(${id},'${it.key}','score',this.value)">
+                  </div>
+                </div>
+                <div style="margin-bottom:8px">
+                  <label class="cl ${checked?'checked':''}" style="margin:0">
+                    <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+                    <span class="cl-label">完了</span>
+                  </label>
+                </div>
+                <div class="test-file-row">
+                  <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerSimpleTestFile(${id},'${it.key}',event)">
+                    ${tf?'📎 確認':'📎 答案添付'}
+                  </button>
+                  <input type="file" id="stfile-${it.key}-${id}" accept=".pdf,image/*" style="display:none" onchange="handleSimpleTestFile(${id},'${it.key}',this)">
+                  ${tf?`<span class="test-file-name" onclick="openFilePreview('${tf.url}','${tf.name}',event)">${tf.name}</span>`:''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function renderRoomGroup(){
+        // 個室研修グループアコーディオン
+        const allDone=ROOM_ITEMS.every(it=>s.checks[it.key]);
+        const doneCount=ROOM_ITEMS.filter(it=>s.checks[it.key]).length;
+        if(allDone && !s.checks['room_train']) s.checks['room_train']=true;
+        const subItems=ROOM_ITEMS.map(it=>{
+          const rec=s.trainRecords&&s.trainRecords[it.key]||{};
+          const checked=!!s.checks[it.key];
+          return `<div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--surface-2)">
+            <label class="cl ${checked?'checked':''}" style="margin-bottom:6px">
+              <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+              <span class="cl-label" style="font-weight:500">${it.label}</span>
+            </label>
+            <div class="train-record">
+              <div class="train-field"><label>完了日</label><input type="date" value="${rec.date||''}" onchange="updateTrainRecord(${id},'${it.key}','date',this.value)"></div>
+              <div class="train-field"><label>承認者</label><input type="text" placeholder="山本 主任" value="${rec.approver||''}" onchange="updateTrainRecord(${id},'${it.key}','approver',this.value)"></div>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:6px">
+          <div class="acc-section" style="border-color:${allDone?'#2ECC71':'var(--border)'}">
+            <div class="acc-header" onclick="toggleAcc('nest-room-train-${id}')">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="acc-title">個室研修</span>
+                ${allDone?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+              </div>
+              <div class="acc-meta">
+                <span class="acc-count">${doneCount}/7 完了</span>
+                <span class="acc-arrow" id="arr-nest-room-train-${id}">▼</span>
+              </div>
+            </div>
+            <div class="acc-body" id="nest-room-train-${id}">
+              <div class="lounge-note">すべて完了で個室研修チェック完了</div>
+              ${subItems}
+            </div>
+          </div>
+        </div>`;
+      }
+
       function renderItem(it){
+        // testType:'simple' → シンプルテストアコーディオン
+        if(it.testType==='simple') return renderSimpleTest(it);
+        // roomGroup → 個室研修グループ
+        if(it.roomGroup) return renderRoomGroup();
+
         const checked = !!s.checks[it.key];
         const fileData = s.files && s.files[it.key];
         const uploadedCls = fileData ? ' uploaded' : '';
@@ -861,55 +956,8 @@ function buildDetail(id){
           </div>`;
         }
 
-        // ホールスタッフ実務対応テスト：ネストアコーディオン
-        if(it.key==='hall_test'){
-          const rec=s.testData&&s.testData['hall_test']||{};
-          const tf=s.testFiles&&s.testFiles['hall_test'];
-          const score=Number(rec.score)||0;
-          const hasData=rec.date||rec.score;
-          return `<div style="margin-bottom:6px">
-            <div class="acc-section" style="border-color:${hasData?'#3A8FD6':'var(--border)'}">
-              <div class="acc-header" onclick="toggleAcc('nest-hall-${id}')">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="acc-title">ホールスタッフ実務対応テスト</span>
-                  ${s.checks['hall_test']?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
-                </div>
-                <div class="acc-meta">
-                  ${rec.score?`<span class="acc-count">${rec.score}点</span>`:'<span class="acc-count">未実施</span>'}
-                  <span class="acc-arrow" id="arr-nest-hall-${id}">▼</span>
-                </div>
-              </div>
-              <div class="acc-body" id="nest-hall-${id}">
-                <div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;background:var(--surface-2)">
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-                    <div class="test-field"><label>実施日</label>
-                      <input type="date" value="${rec.date||''}" onchange="updateHallTest(${id},'date',this.value)">
-                    </div>
-                    <div class="test-field"><label>点数</label>
-                      <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateHallTest(${id},'score',this.value)">
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-                    <label class="cl ${s.checks['hall_test']?'checked':''}" style="margin:0">
-                      <input type="checkbox" onchange="toggleCheckNew(${id},'hall_test',this)" ${s.checks['hall_test']?'checked':''}> 
-                      <span class="cl-label">完了</span>
-                    </label>
-                  </div>
-                  <div class="test-file-row">
-                    <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerHallTestFile(${id},event)">
-                      ${tf?'📎 確認':'📎 答案添付'}
-                    </button>
-                    <input type="file" id="hallfile-hall_test" accept=".pdf,image/*" style="display:none" onchange="handleHallTestFile(${id},this)">
-                    ${tf?`<span class="test-file-name" onclick="openFilePreview('${tf.url}','${tf.name}',event)">${tf.name}</span>`:''}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>`;
-        }
-
-        // 個室実技テスト：ネストアコーディオン
-        if(it.key==='practical'){
+        // 個室実技テスト：ネストアコーディオン（testType:'practical'で呼ばれる）
+        if(it.key==='practical'||it.testType==='practical'){
           const r1=s.testData&&s.testData['practical_r1']||{};
           const r2=s.testData&&s.testData['practical_r2']||{};
           const s1=Number(r1.score)||0, s2=Number(r2.score)||0;
@@ -985,14 +1033,42 @@ function buildDetail(id){
       let bodyHtml = '<div class="cl-list">';
       // 通常項目
       normalItems.forEach(it=>{ bodyHtml += renderItem(it); });
-      // ラウンジ研修
+      // ラウンジ研修グループアコーディオン
       if(loungeItems.length){
-        bodyHtml += `<div class="lounge-note">いずれか1か所の研修完了でOK</div>`;
-        loungeItems.forEach(it=>{ bodyHtml += renderTrainItem(it); });
-      }
-      // 個室研修
-      if(roomItems.length){
-        roomItems.forEach(it=>{ bodyHtml += renderTrainItem(it); });
+        const loungeDone=loungeItems.some(it=>s.checks[it.key]);
+        const lDoneCount=loungeItems.filter(it=>s.checks[it.key]).length;
+        const lSubItems=loungeItems.map(it=>{
+          const rec=s.trainRecords&&s.trainRecords[it.key]||{};
+          const checked=!!s.checks[it.key];
+          return `<div style="border:0.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--surface-2)">
+            <label class="cl ${checked?'checked':''}" style="margin-bottom:6px">
+              <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+              <span class="cl-label" style="font-weight:500">${it.label.replace('ラウンジ研修 ','')}</span>
+            </label>
+            <div class="train-record">
+              <div class="train-field"><label>完了日</label><input type="date" value="${rec.date||''}" onchange="updateTrainRecord(${id},'${it.key}','date',this.value)"></div>
+              <div class="train-field"><label>承認者</label><input type="text" placeholder="山本 主任" value="${rec.approver||''}" onchange="updateTrainRecord(${id},'${it.key}','approver',this.value)"></div>
+            </div>
+          </div>`;
+        }).join('');
+        bodyHtml += `<div style="margin-bottom:6px">
+          <div class="acc-section" style="border-color:${loungeDone?'#2ECC71':'var(--border)'}">
+            <div class="acc-header" onclick="toggleAcc('nest-lounge-${id}')">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="acc-title">ラウンジ研修</span>
+                ${loungeDone?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+              </div>
+              <div class="acc-meta">
+                <span class="acc-count">${lDoneCount}/3 完了</span>
+                <span class="acc-arrow" id="arr-nest-lounge-${id}">▼</span>
+              </div>
+            </div>
+            <div class="acc-body" id="nest-lounge-${id}">
+              <div class="lounge-note">いずれか1か所の研修完了でOK</div>
+              ${lSubItems}
+            </div>
+          </div>
+        </div>`;
       }
       bodyHtml += '</div>';
 
@@ -1127,7 +1203,41 @@ async function handleBig5File(staffId, tKey, input){
 }
 
 
-// ---- ホールスタッフ実務対応テスト ----
+
+// ---- シンプルテスト共通処理 ----
+function updateSimpleTest(staffId, key, field, val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  if(!s.testData) s.testData={};
+  if(!s.testData[key]) s.testData[key]={};
+  s.testData[key][field]=val;
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(staffId, s);
+  setTimeout(()=>{ document.getElementById('modal-body').innerHTML=buildDetail(staffId); },100);
+}
+function triggerSimpleTestFile(staffId, key, e){
+  e.preventDefault(); e.stopPropagation();
+  if(!isEditable()) return;
+  document.getElementById('stfile-'+key+'-'+staffId).click();
+}
+async function handleSimpleTestFile(staffId, key, input){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===staffId); if(!s) return;
+  const file=input.files[0]; if(!file) return;
+  if(!s.testFiles) s.testFiles={};
+  showSaving();
+  const base64=await new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  s.testFiles[key]={name:file.name, url:base64};
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) await window._setDoc(staffId, s);
+  hideSaving();
+  document.getElementById('modal-body').innerHTML=buildDetail(staffId);
+}
+// ---- ホールスタッフ実務対応テスト（旧・updateSimpleTestに統合）----
 function updateHallTest(staffId, field, val){
   if(!isEditable()) return;
   const s=staff.find(x=>x.id===staffId); if(!s) return;
