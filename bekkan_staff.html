@@ -816,12 +816,10 @@ function buildDetail(id){
                     <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateSimpleTest(${id},'${it.key}','score',this.value)">
                   </div>
                 </div>
-                <div style="margin-bottom:8px">
-                  <label class="cl ${checked?'checked':''}" style="margin:0">
-                    <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
-                    <span class="cl-label">完了</span>
-                  </label>
-                </div>
+                <label class="cl ${checked?'checked':''}" id="cl-${it.key}">
+                  <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+                  <span class="cl-label">完了済みとしてマーク</span>
+                </label>
                 <div class="test-file-row">
                   <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerSimpleTestFile(${id},'${it.key}',event)">
                     ${tf?'📎 確認':'📎 答案添付'}
