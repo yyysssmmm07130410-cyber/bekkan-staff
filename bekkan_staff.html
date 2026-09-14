@@ -23,11 +23,19 @@
   const colRef = collection(db, 'staff');
 
   // リアルタイム同期
+  // ※ initFirestore()は削除済み。空でも絶対に上書きしない。
+  let _firstSnapshot = true;
   onSnapshot(colRef, (snapshot) => {
+    // 初回かつ空の場合のみ警告（上書きはしない）
     if(snapshot.empty){
-      initFirestore();
+      if(_firstSnapshot){
+        console.warn('Firestore: staffコレクションが空です。データが消えた可能性があります。');
+        // 絶対にinitFirestoreを呼ばない
+      }
+      _firstSnapshot = false;
       return;
     }
+    _firstSnapshot = false;
     const fetched = snapshot.docs.map(d => {
       const data = d.data();
       data.id = isNaN(d.id) ? d.id : Number(d.id);
@@ -47,13 +55,6 @@
       if(mb && mb.innerHTML) mb.innerHTML = buildDetail(currentId);
     }
   });
-
-  // 初回：デフォルトデータをFirestoreに投入
-  async function initFirestore(){
-    for(const s of DEFAULT_STAFF){
-      await setDoc(doc(db, 'staff', String(s.id)), s);
-    }
-  }
 
   // グローバル公開
   window._setDoc    = (id, data) => setDoc(doc(db, 'staff', String(id)), sanitize(data));
