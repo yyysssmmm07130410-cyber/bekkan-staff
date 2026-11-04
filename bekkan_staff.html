@@ -593,8 +593,16 @@ const STEP_CHECKS = {
   7: [
     { key:'practical',  label:'個室実技テスト', file:false, testType:'practical' },
   ],
-  8: [],
-  9: [],
+  8: [
+    { key:'mamo_train',   label:'MAMO研修',   file:false, train:true },
+    { key:'porter_train', label:'ポーター研修', file:false, train:true },
+  ],
+  9: [
+    // センター研修3種（いずれか1つでOK）
+    { key:'center_b1',    label:'センター研修 B1',    file:false, center:true },
+    { key:'center_b2',    label:'センター研修 B2',    file:false, center:true },
+    { key:'center_nikai', label:'センター研修 NIKAI', file:false, center:true },
+  ],
 };
 
 
@@ -756,6 +764,7 @@ function sectionBadges(s){
   if(s.step>=6) badges+=`<span class="sec-badge sec-room">個室</span>`;
   if(s.step>=7) badges+=`<span class="sec-badge" style="background:#E6F1FB;color:#1565C0">全個室可</span>`;
   if(s.step>=8) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">ポーター</span>`;
+  if(s.step>=9) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">センター${s.centerApt?'('+s.centerApt+')':''}</span>`;
   if(s.step>=9) badges+=`<span class="sec-badge" style="background:#2C2C2A;color:#F1EFE8">センター</span>`;
   if(s.pos==='BAR') badges+=`<span class="sec-badge sec-bar">BAR</span>`;
   return badges;
@@ -848,6 +857,20 @@ function openDetail(id){
 }
 
 function buildDetail(id){
+  const html=buildDetail0(id);
+  if(_accFor!==id){ _accState={}; _accFor=id; }
+  else document.querySelectorAll('#modal-body .acc-body[id]').forEach(el=>{ _accState[el.id]=el.classList.contains('open'); });
+  const ids=Object.keys(_accState);
+  if(!ids.length) return html;
+  const t=document.createElement('template'); t.innerHTML=html;
+  ids.forEach(k=>{
+    const b=t.content.getElementById(k); if(!b) return;
+    b.classList.toggle('open',_accState[k]);
+    const a=t.content.getElementById('arr-'+k); if(a) a.classList.toggle('open',_accState[k]);
+  });
+  return t.innerHTML;
+}
+function buildDetail0(id){
   { const _t=(typeof t10Intercept==='function')?t10Intercept(id):null; if(_t) return _t; }
   const s=staff.find(x=>x.id===id);
   const photo=s.photo?`<img src="${s.photo}" alt="${s.name}">`:`<span style="font-size:24px;color:var(--muted)">${initials(s.name)}</span>`;
@@ -897,7 +920,8 @@ function buildDetail(id){
       const accId = 'acc-'+st.id;
 
       // ラウンジ・個室研修のグループ分け
-      const normalItems = items.filter(it=>!it.lounge && !it.room);
+      const normalItems = items.filter(it=>!it.lounge && !it.room && !it.center);
+      const centerItems = items.filter(it=>it.center);
       const loungeItems = items.filter(it=>it.lounge);
       const roomItems   = items.filter(it=>it.room);
 
@@ -992,6 +1016,7 @@ function buildDetail(id){
         if(it.testType==='simple') return renderSimpleTest(it);
         // roomGroup → 個室研修グループ
         if(it.roomGroup) return renderRoomGroup();
+        if(it.train) return renderTrainItem(it);
 
         const checked = !!s.checks[it.key];
         const fileData = s.files && s.files[it.key];
@@ -1183,6 +1208,36 @@ function buildDetail(id){
           </div>
         </div>`;
       }
+      if(centerItems.length){
+        const cDone=centerItems.some(it=>s.checks[it.key]);
+        const cCount=centerItems.filter(it=>s.checks[it.key]).length;
+        const cSub=centerItems.map(it=>renderTrainItem({key:it.key,label:it.label.replace('センター研修 ','')})).join('');
+        const apt=s.centerApt||'';
+        const aptSel=['B1','B2','NIKAI'].map(v=>`<option value="${v}" ${apt===v?'selected':''}>${v}</option>`).join('');
+        bodyHtml += `<div style="margin-bottom:6px">
+          <div class="acc-section" style="border-color:${cDone?'#2ECC71':'var(--border)'}">
+            <div class="acc-header" onclick="toggleAcc('nest-center-${id}')">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="acc-title">センター研修</span>
+                ${cDone?'<span style="font-size:10px;color:#2ECC71;font-weight:600">✅ 完了</span>':''}
+              </div>
+              <div class="acc-meta">
+                <span class="acc-count">${cCount}/3 完了</span>
+                <span class="acc-arrow" id="arr-nest-center-${id}">▼</span>
+              </div>
+            </div>
+            <div class="acc-body" id="nest-center-${id}">
+              <div class="lounge-note">いずれか1か所の研修完了でOK</div>
+              ${cSub}
+            </div>
+          </div>
+        </div>
+        <div class="test-field" style="margin:8px 0"><label>センター適性</label>
+          <select onchange="updateCenterApt(${id},this.value)">
+            <option value="" ${!apt?'selected':''}>未選択</option>${aptSel}
+          </select>
+        </div>`;
+      }
       bodyHtml += '</div>';
 
       html += `<div class="acc-section">
@@ -1263,12 +1318,23 @@ function setStepDirect(stepId){
   renderCards();
 }
 
+function updateCenterApt(id,val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===id); if(!s) return;
+  s.centerApt=val;
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(id,s);
+  renderCards();
+}
+// アコーディオン開閉状態を再描画後も保持
+let _accState={}, _accFor=null;
 function toggleAcc(id){
   const body=document.getElementById(id);
   const arr=document.getElementById('arr-'+id);
   if(!body) return;
   const isOpen=body.classList.contains('open');
   body.classList.toggle('open',!isOpen);
+  _accState[id]=!isOpen;
   if(arr) arr.classList.toggle('open',!isOpen);
 }
 
@@ -1460,7 +1526,7 @@ function toggleCheckNew(id, key, el){
   // 現STEPの全項目が埋まったら自動昇格
   const stepItems = STEP_CHECKS[s.step] || [];
   const allDone = stepItems.length > 0 && stepItems.every(it => s.checks[it.key]);
-  if(allDone && s.step < 8){
+  if(allDone && s.step < 9){
     const nextStep = s.step + 1;
     s.step = nextStep;
     showStepUpBanner(nextStep);
@@ -1536,7 +1602,7 @@ async function handleFileUpload(id, key, input){
   // 自動昇格チェック
   const stepItems = STEP_CHECKS[s.step] || [];
   const allDone = stepItems.length > 0 && stepItems.every(it => s.checks[it.key]);
-  if(allDone && s.step < 8){
+  if(allDone && s.step < 9){
     s.step = s.step + 1;
     showStepUpBanner(s.step);
   }
@@ -2008,7 +2074,7 @@ function t10Judge(id,w,res){
       s.checks[linkKey]=true; s.updated=today(); s.updater=by;
       const items=STEP_CHECKS[s.step]||[];
       const all=items.length>0 && items.every(it=>s.checks[it.key]);
-      if(all && s.step<8){ s.step=s.step+1; try{ showStepUpBanner(s.step); }catch(e){} }
+      if(all && s.step<9){ s.step=s.step+1; try{ showStepUpBanner(s.step); }catch(e){} }
       if(window._setDoc) window._setDoc(id,s);
       try{ renderCards(); }catch(e){}
     }
