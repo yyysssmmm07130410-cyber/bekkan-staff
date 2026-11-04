@@ -23,19 +23,11 @@
   const colRef = collection(db, 'staff');
 
   // リアルタイム同期
-  // ※ initFirestore()は削除済み。空でも絶対に上書きしない。
-  let _firstSnapshot = true;
   onSnapshot(colRef, (snapshot) => {
-    // 初回かつ空の場合のみ警告（上書きはしない）
     if(snapshot.empty){
-      if(_firstSnapshot){
-        console.warn('Firestore: staffコレクションが空です。データが消えた可能性があります。');
-        // 絶対にinitFirestoreを呼ばない
-      }
-      _firstSnapshot = false;
+      initFirestore();
       return;
     }
-    _firstSnapshot = false;
     const fetched = snapshot.docs.map(d => {
       const data = d.data();
       data.id = isNaN(d.id) ? d.id : Number(d.id);
@@ -55,6 +47,22 @@
       if(mb && mb.innerHTML) mb.innerHTML = buildDetail(currentId);
     }
   });
+
+  // 初回：デフォルトデータをFirestoreに投入
+  async function initFirestore(){
+    for(const s of DEFAULT_STAFF){
+      await setDoc(doc(db, 'staff', String(s.id)), s);
+    }
+  }
+
+  // 10日研修（training10）
+  onSnapshot(collection(db, 'training10'), (snap) => {
+    const m = {};
+    snap.docs.forEach(d => { m[d.id] = d.data(); });
+    window._t10Data = m;
+    if(window.t10OnData) window.t10OnData();
+  });
+  window._t10Merge = (id, data) => setDoc(doc(db, 'training10', String(id)), sanitize(data), { merge: true });
 
   // グローバル公開
   window._setDoc    = (id, data) => setDoc(doc(db, 'staff', String(id)), sanitize(data));
@@ -377,6 +385,96 @@ select.ctrl:focus{border-color:var(--gold)}
 .train-field input{width:100%;height:30px;padding:0 8px;border-radius:6px;border:0.5px solid var(--border);background:var(--surface);font-size:12px;color:var(--ink);font-family:inherit}
 .train-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:var(--bg-accent);color:var(--text-accent);display:inline-block;margin-bottom:4px}
 .lounge-note{font-size:10px;color:var(--text-muted);margin-bottom:6px;padding:4px 8px;background:var(--paper);border-radius:6px;border-left:2px solid var(--gold)}
+/* ===== 10日研修 ===== */
+.t10-btn{height:40px;padding:0 18px;border-radius:20px;border:1px solid var(--gold);background:var(--gold);color:#1A1917;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.t10-btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--border)}
+.t10-btn:disabled{opacity:.4;cursor:not-allowed}
+.t10-grow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hdr-t10{height:38px;padding:0 16px;border-radius:20px;border:1px solid var(--gold);background:transparent;color:var(--gold-light);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+.hdr-t10:hover{background:rgba(201,168,76,.2)}
+.t10-empty{color:var(--muted);font-size:13px;padding:6px 0 12px}
+.t10-bar{height:8px;background:#EFEBE2;border:1px solid var(--border);flex:1;min-width:40px}
+.t10-bar>div{height:100%;background:var(--gold)}
+.t10-chip{font-size:11px;padding:2px 9px;border-radius:12px;border:1px solid var(--border);color:var(--muted);white-space:nowrap;font-weight:600;background:var(--surface)}
+.t10-chip.ok{border-color:#C9A84C;color:#7A5C0A;background:var(--gold-light)}
+.t10-chip.mid{border-color:#1565C0;color:#1565C0;background:#E3F2FD}
+.t10-chip.ng{border-color:#B85A0F;color:#B85A0F;background:#FFF3E0}
+.t10-top{display:flex;gap:16px;align-items:center;margin-bottom:10px}
+.t10-pct{font-size:42px;font-weight:700;color:#7A5C0A;line-height:1}.t10-pct small{font-size:18px}
+.t10-top-r{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.t10-prow{display:grid;grid-template-columns:62px 1fr 40px;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.t10-prow b{text-align:right;color:var(--ink)}
+.t10-meta{font-size:11px;color:var(--muted)}
+.t10-days{border:0.5px solid var(--border);border-radius:10px;overflow:hidden}
+.t10-day{display:grid;grid-template-columns:34px 1fr 70px 38px 56px;gap:8px;align-items:center;padding:8px 10px;border-bottom:0.5px solid var(--border);font-size:12px;cursor:pointer}
+.t10-day:last-child{border-bottom:0}.t10-day:hover{background:var(--gold-light)}
+.t10-dn{font-weight:700}.t10-dt{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.t10-dc{color:var(--muted);text-align:right}
+.t10-gate{border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:12px}
+.t10-gate.ok{border-color:var(--gold)}
+.t10-ghead{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.t10-cond{display:flex;gap:8px;align-items:flex-start}
+.t10-cm{width:18px;height:18px;flex:none;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)}
+.t10-cm.ok{border-color:#C9A84C;color:#7A5C0A}.t10-cm.ng{border-color:#B85A0F;color:#B85A0F}
+.t10-ngtx{color:#B85A0F}
+.t10-gnote{font-size:11px;color:var(--muted)}
+.t10-sub{font-size:11px;letter-spacing:.06em;color:var(--muted);margin:14px 0 4px;font-weight:600}
+.t10-retry{font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)}
+/* 日別入力 */
+.t10-wrap{padding:14px 18px;display:flex;flex-direction:column;gap:14px}
+.t10-back{height:40px;border:0;background:transparent;color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;padding:0}
+.t10-hd{font-size:17px;font-weight:700}
+.t10-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px}
+.t10-dchip{flex:none;width:36px;height:36px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;cursor:pointer;font-family:inherit}
+.t10-dchip.done{border-color:var(--gold);color:#7A5C0A}.t10-dchip.cur{background:var(--gold);border-color:var(--gold);color:#1A1917}
+.t10-tr{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.t10-tr input,.t10-miss,.t10-score input{height:44px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--surface);width:100%}
+.t10-prog{background:var(--paper);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.t10-g{display:flex;flex-direction:column;gap:8px}
+.t10-gt{font-size:14px;font-weight:700;color:#7A5C0A}.t10-gt small,.t10-il small{font-size:11px;font-weight:400;color:var(--muted);margin-left:8px}
+.t10-item{border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.t10-il{font-size:13px;font-weight:600}
+.t10-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.t10-ox{height:44px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;border-radius:8px;cursor:pointer;font-family:inherit}
+.t10-ox.on{background:var(--gold);border-color:var(--gold)}.t10-ox.ng.on{background:#F2A65A;border-color:#F2A65A}
+.t10-score{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.t10-score input{width:90px;text-align:center;font-size:20px;font-weight:700}
+.t10-step{width:48px;height:44px;border:1px solid var(--border);background:var(--paper);font-size:20px;border-radius:8px;cursor:pointer;font-family:inherit}
+.t10-unit{color:var(--muted);font-size:13px}
+.t10-ax{display:grid;grid-template-columns:72px 1fr 1fr 1fr;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.t10-abc{height:40px;border:1px solid var(--border);background:var(--surface);font-weight:700;border-radius:8px;cursor:pointer;font-family:inherit;color:var(--ink)}
+.t10-abc.on.A{background:var(--gold);border-color:var(--gold)}.t10-abc.on.B{background:#E3F2FD;border-color:#1565C0;color:#1565C0}.t10-abc.on.C{background:#F2A65A;border-color:#F2A65A}
+.t10-ta{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.t10-ta textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;color:var(--ink);resize:vertical}
+/* 全体集計パネル */
+.t10-panel{display:none;position:fixed;inset:0;z-index:150;background:var(--paper);overflow-y:auto}
+.t10-panel.open{display:block}
+.t10-phead{position:sticky;top:0;background:var(--ink);color:var(--paper);height:56px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;z-index:2}
+.t10-phead b{letter-spacing:.08em}
+.t10-pclose{height:36px;padding:0 16px;border-radius:18px;border:1px solid var(--gold);background:transparent;color:var(--gold-light);cursor:pointer;font-family:inherit}
+.t10-pbody{max-width:1100px;margin:0 auto;padding:20px 20px 60px}
+.t10-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.t10-kpi{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:2px}
+.t10-kpi span{font-size:11px;color:var(--muted)}.t10-kpi b{font-size:26px;color:#7A5C0A}
+.t10-h3{font-size:15px;margin:22px 0 8px}
+.t10-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.t10-card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
+.t10-card:hover{border-color:var(--gold)}
+.t10-ch{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.t10-cm2{font-size:11px;color:var(--muted)}
+.t10-cp{font-size:34px;font-weight:700;color:#7A5C0A;display:flex;align-items:baseline;gap:8px;line-height:1}.t10-cp small{font-size:16px;margin-left:-6px}.t10-cp span{font-size:11px;font-weight:400;color:var(--muted)}
+.t10-chips2{display:flex;gap:6px;flex-wrap:wrap}
+.t10-sc{overflow-x:auto;background:var(--surface);border:0.5px solid var(--border);border-radius:12px}
+.t10-tb{border-collapse:collapse;width:100%;min-width:520px;font-size:12px}
+.t10-tb th{padding:9px 8px;color:var(--muted);font-weight:600;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
+.t10-tb th:first-child,.t10-tb td.t10-nm{text-align:left;padding-left:12px}
+.t10-tb td{padding:4px;border-bottom:0.5px solid var(--border);text-align:center}
+.t10-tb td.r{text-align:right;padding-right:12px}
+.t10-nm{white-space:nowrap;font-weight:700}.t10-nm small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.t10-mc{height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.t10-rt{color:var(--muted);white-space:nowrap}
+.t10-dist{display:flex;height:9px;border:1px solid var(--border);min-width:100px}.t10-dist i{display:block;height:100%}
+.t10-two{display:grid;grid-template-columns:3fr 2fr;gap:20px}
+@media(max-width:760px){.t10-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.t10-two{grid-template-columns:1fr}.t10-day{grid-template-columns:30px 1fr 50px 34px 54px}}
 </style>
 </head>
 <body>
@@ -402,6 +500,7 @@ select.ctrl:focus{border-color:var(--gold)}
       <button class="vt-btn active" id="vt4" onclick="setView(4)" title="4人表示">⊞</button>
       <button class="vt-btn" id="vt16" onclick="setView(16)" title="16人表示">⣿</button>
     </div>
+    <button class="hdr-t10" onclick="t10OpenPanel()">10日研修</button>
     <button class="add-btn" onclick="openAdd()">＋ スタッフ追加</button>
   </div>
 </div>
@@ -424,6 +523,7 @@ select.ctrl:focus{border-color:var(--gold)}
 <div class="pos-sections" id="grid"></div>
 
 
+<div class="t10-panel" id="t10-panel"><div class="t10-phead"><b>10日研修　集計</b><button class="t10-pclose" onclick="t10ClosePanel()">閉じる</button></div><div class="t10-pbody" id="t10-body"></div></div>
 <!-- File Preview Modal -->
 <div class="file-overlay" id="file-overlay" onclick="closeFilePreview(event)">
   <button class="file-close" onclick="closeFilePreview()">×</button>
@@ -737,6 +837,7 @@ function openDetail(id){
 }
 
 function buildDetail(id){
+  { const _t=(typeof t10Intercept==='function')?t10Intercept(id):null; if(_t) return _t; }
   const s=staff.find(x=>x.id===id);
   const photo=s.photo?`<img src="${s.photo}" alt="${s.name}">`:`<span style="font-size:24px;color:var(--muted)">${initials(s.name)}</span>`;
   const pct=Math.round(s.checks.length/20*100);
@@ -817,10 +918,12 @@ function buildDetail(id){
                     <input type="number" min="0" max="100" placeholder="点数" value="${rec.score||''}" onchange="updateSimpleTest(${id},'${it.key}','score',this.value)">
                   </div>
                 </div>
-                <label class="cl ${checked?'checked':''}" id="cl-${it.key}">
-                  <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
-                  <span class="cl-label">完了済みとしてマーク</span>
-                </label>
+                <div style="margin-bottom:8px">
+                  <label class="cl ${checked?'checked':''}" style="margin:0">
+                    <input type="checkbox" onchange="toggleCheckNew(${id},'${it.key}',this)" ${checked?'checked':''}> 
+                    <span class="cl-label">完了</span>
+                  </label>
+                </div>
                 <div class="test-file-row">
                   <button class="test-file-btn ${tf?'uploaded':''}" onclick="triggerSimpleTestFile(${id},'${it.key}',event)">
                     ${tf?'📎 確認':'📎 答案添付'}
@@ -1115,6 +1218,8 @@ function buildDetail(id){
     <div class="section-label">チェックリスト</div>
     ${clHTML}
   </div>
+
+  ${t10DetailSection(id)}
 
   <div class="detail-section">
     <div class="section-label">勤怠</div>
@@ -1660,7 +1765,7 @@ function showSaving(){ document.getElementById('saving-toast').classList.add('sh
 function hideSaving(){ document.getElementById('saving-toast').classList.remove('show'); }
 
 function today(){return new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-')}
-function closeModal(){document.getElementById('overlay').classList.remove('open');}
+function closeModal(){t10View=null;document.getElementById('overlay').classList.remove('open');}
 function overlayClick(e){if(e.target===document.getElementById('overlay')) closeModal();}
 
 
@@ -1687,6 +1792,479 @@ function clearPhoto(previewId, dataId){
   if(clearBtn) clearBtn.style.display = 'none';
 }
 
+
+/* ============ 10日研修（社員希望PA） ============
+   保存先：Firestore  training10/{スタッフID}
+   既存の staff ドキュメントは、判定の確定時にチェック項目1つと更新日だけを書き換える */
+var t10View = null;           // 日別入力を開いている間 {id, day}
+var t10PanelOpen = false;
+
+const T10_OX = (k,l,n)=>({k:k,l:l,t:'ox',n:n||''});
+const T10_SC = (k,l,max,pass,n)=>({k:k,l:l,t:'sc',max:max,pass:pass,n:n||''});
+const T10_RP = (k,l)=>({k:k,l:l,t:'rp'});
+const T10_OKNG = {
+  plain:{ok:'できた',ng:'要補習'},
+  prac:{ok:'合格',ng:'要補習'},
+  know:{ok:'できた',ng:'要確認'},
+  post:{ok:'○',ng:'×'}
+};
+const T10_SCENES = [
+  ['A','入客・ファースト'],['B','卓管理'],['C','フード・割り物'],['G','ボトル対応'],
+  ['D','ラストオーダー'],['E','チェック（お会計）'],['F','ゲストアウト']
+];
+const T10_PH = {run:'ランナー', lng:'ラウンジ', rp:'ロープレ'};
+const T10_DAYS = [
+  {d:1, theme:'ランナー基礎①', ph:'run', groups:[{g:'', c:'plain', items:[
+    T10_OX('r1_shop','店舗配置・卓番・フロア'), T10_OX('r1_keep','キープボトル・備品の位置'),
+    T10_OX('r1_glass','グラスの洗い方'), T10_OX('r1_fast','グラス早回し（優先6種）'),
+    T10_OX('r1_dish','食器の洗い方'), T10_OX('r1_silver','シルバーの仕分け'),
+    T10_OX('r1_wash','洗い場の実演（一人で回す）')]}]},
+  {d:2, theme:'ランナー基礎②', ph:'run', groups:[{g:'', c:'plain', items:[
+    T10_OX('r2_ash','灰皿・おしぼり・備品補充'), T10_OX('r2_up','アップ'),
+    T10_OX('r2_toilet','トイレチェック'), T10_OX('r2_food','フード運搬'),
+    T10_OX('r2_buy','買い出し（口頭）'), T10_OX('r2_prio','営業中の優先順位・繁忙時の動き')]}]},
+  {d:3, theme:'ランナー実践・確認', ph:'run', groups:[
+    {g:'実技（必須業務）', n:'すべて合格が必要', c:'prac', items:[
+      T10_OX('r3_w1','洗い場・食器洗浄'), T10_OX('r3_w2','下げ物・アップ・テーブルセット'),
+      T10_OX('r3_w3','フード運搬'), T10_OX('r3_w4','トイレチェック'),
+      T10_OX('r3_w5','備品補充・おしぼりの扱い'), T10_OX('r3_w6','買い出し（実践）'),
+      T10_OX('r3_w7','営業中の優先順位・繁忙時の動き')]},
+    {g:'知識確認', n:'口頭で答えられれば合格', c:'know', items:[
+      T10_OX('r3_k1','店舗配置・卓番・フロア'), T10_OX('r3_k2','キープボトル・備品の位置')]},
+    {g:'姿勢面チェック', n:'すべて○で合格', c:'post', items:[
+      T10_OX('r3_p1','身だしなみ'), T10_OX('r3_p2','勤怠（遅刻・無断欠勤なし）'),
+      T10_OX('r3_p3','あいさつ'), T10_OX('r3_p4','さぼらない・指示の正確さ')]},
+    {g:'ランナー業務テスト', n:'35問・28点以上で合格', c:'plain', items:[
+      T10_SC('r3_test','ランナー業務テスト',35,28)]}]},
+  {d:4, theme:'ラウンジ基礎①', ph:'lng', groups:[{g:'', c:'plain', items:[
+    T10_OX('l4_oral','口頭研修（接客基礎・配置役割）'), T10_OX('l4_post','姿勢・声かけの実演'),
+    T10_OX('l4_glass','グラス・什器の種類')]}]},
+  {d:5, theme:'ラウンジ基礎②', ph:'lng', groups:[{g:'', c:'plain', items:[
+    T10_OX('l5_slip','伝票の書き方'), T10_OX('l5_first','入客〜ファースト'),
+    T10_OX('l5_table','卓管理'), T10_OX('l5_check','会計とインカム'),
+    T10_SC('l5_test','口頭研修理解度テスト',30,null,'合否外（点数を記録）')]}]},
+  {d:6, theme:'ラウンジ総括・テスト', ph:'lng', groups:[{g:'', c:'plain', items:[
+    T10_OX('l6_last','ラスト〜ゲストアウトの流れ'), T10_OX('l6_rule','禁止事項・ラウンジ特有のルール'),
+    T10_OX('l6_btl','ボトル対応（キープ・抜き物）'),
+    T10_SC('l6_test','ラウンジウェイターテスト',30,26,'26点以上で合格'),
+    T10_SC('l6_grand','グランドメニューテスト',100,95,'95点以上'),
+    T10_SC('l6_house','ハウスボトル・BTL値段テスト',100,95,'95点以上')]}]},
+  {d:7, theme:'ロープレ①', ph:'rp', groups:[{g:'', c:'plain', items:[
+    T10_RP('rp_A','場面A　入客・ファースト'), T10_RP('rp_B','場面B　卓管理')]}]},
+  {d:8, theme:'ロープレ②', ph:'rp', groups:[{g:'', c:'plain', items:[
+    T10_RP('rp_C','場面C　フード・割り物'), T10_RP('rp_G','場面G　ボトル対応'),
+    T10_RP('rp_D','場面D　ラストオーダー'), T10_RP('rp_E','場面E　チェック（お会計）')]}]},
+  {d:9, theme:'ロープレ③', ph:'rp', groups:[{g:'', c:'plain', items:[
+    T10_RP('rp_F','場面F　ゲストアウト'), T10_RP('rp_all1','A〜G通し（1回目）'),
+    T10_RP('rp_all2','A〜G通し（2回目）'),
+    T10_OX('irr','簡単なイレギュラー対応','観察のみ・合否外')]}]},
+  {d:10, theme:'総合ロープレ・判定', ph:'rp', groups:[{g:'', c:'plain', items:[
+    T10_RP('rp_final','A〜G通し（最終）'), T10_OX('handoff','OJTへの申し送りを記入した')]}]}
+];
+const T10_ITEM = {};
+T10_DAYS.forEach(D=>D.groups.forEach(g=>g.items.forEach(it=>{ it.d=D.d; it.ph=D.ph; T10_ITEM[it.k]=it; })));
+
+/* ---- データ ---- */
+function t10All(){ return window._t10Data || (window._t10Data = {}); }
+function t10Get(id){ return t10All()[id] || null; }
+function t10Esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function t10Deep(t,p){
+  for(const k in p){ const v=p[k];
+    if(v && typeof v==='object' && !Array.isArray(v)){ if(!t[k]||typeof t[k]!=='object') t[k]={}; t10Deep(t[k],v); }
+    else t[k]=v; }
+  return t;
+}
+function t10Trainer(){ try{ return (localStorage.getItem('bekkan_t10_trainer')||'').trim(); }catch(e){ return ''; } }
+function t10SetTrainer(v){ try{ localStorage.setItem('bekkan_t10_trainer', String(v).trim()); }catch(e){} }
+function t10Can(){
+  if(typeof isEditable==='function' && !isEditable()) return false;
+  if(!t10Trainer()){ alert('研修者名を入力してください（入力欄は日別チェックの上部にあります）'); return false; }
+  return true;
+}
+function t10Apply(id, patch, day){
+  const by=t10Trainer(); const now=new Date().toISOString();
+  const full=Object.assign({staffId:id, updated:today(), updater:by}, patch);
+  if(day){ full.daysMeta=Object.assign({}, full.daysMeta, {[day]:{by:by, at:now}}); }
+  const all=t10All(); if(!all[id]) all[id]={};
+  t10Deep(all[id], full);
+  if(window._t10Merge){
+    try{ showSaving(); }catch(e){}
+    Promise.resolve(window._t10Merge(id, full)).catch(e=>alert('保存に失敗しました：'+(e&&e.message||e))).finally(()=>{ try{ hideSaving(); }catch(e){} });
+  }
+}
+
+/* ---- 達成の判定 ---- */
+function t10Val(id,k){ const d=t10Get(id); return d && d.items ? d.items[k] : undefined; }
+function t10Done(it,v){
+  if(v==null) return false;
+  if(it.t==='ox') return v==='o';
+  if(it.t==='sc') return typeof v==='number' && (it.pass==null || v>=it.pass);
+  if(it.t==='rp') return ['post','word','act'].every(a=>v[a]==='A'||v[a]==='B') && !(v.miss && String(v.miss).trim());
+  return false;
+}
+function t10Entered(it,v){
+  if(v==null) return false;
+  if(it.t==='rp') return !!(v.post||v.word||v.act||(v.miss&&String(v.miss).trim()));
+  return true;
+}
+function t10Bad(it,v){
+  if(v==null) return false;
+  if(it.t==='ox') return v==='x';
+  if(it.t==='sc') return typeof v==='number' && it.pass!=null && v<it.pass;
+  if(it.t==='rp') return ['post','word','act'].some(a=>v[a]==='C') || !!(v.miss && String(v.miss).trim());
+  return false;
+}
+function t10DayStat(id,day){
+  const D=T10_DAYS[day-1]; let done=0,total=0,entered=0;
+  D.groups.forEach(g=>g.items.forEach(it=>{ const v=t10Val(id,it.k); total++; if(t10Done(it,v)) done++; if(t10Entered(it,v)) entered++; }));
+  return {done:done,total:total,entered:entered,pct:total?Math.round(done/total*100):0};
+}
+function t10Stat(id){
+  const ph={run:{d:0,t:0},lng:{d:0,t:0},rp:{d:0,t:0}}; let done=0,total=0; const days=[];
+  T10_DAYS.forEach(D=>{ const s=t10DayStat(id,D.d); days.push(s); done+=s.done; total+=s.total; ph[D.ph].d+=s.done; ph[D.ph].t+=s.total; });
+  const pct=total?Math.round(done/total*100):0;
+  const phase={}; Object.keys(ph).forEach(k=>{ phase[k]=ph[k].t?Math.round(ph[k].d/ph[k].t*100):0; });
+  let cur=10; for(let i=0;i<10;i++){ if(days[i].done<days[i].total){ cur=i+1; break; } }
+  return {done:done,total:total,pct:pct,phase:phase,days:days,cur:cur};
+}
+function t10Mark(id,k){ const it=T10_ITEM[k]; return t10Done(it,t10Val(id,k)); }
+function t10Gate(id,w){
+  const d=t10Get(id)||{}; const j=d.judge && d.judge[w] ? d.judge[w] : null;
+  const keysOf=(day,gi)=>T10_DAYS[day-1].groups[gi].items.map(i=>i.k);
+  const cnt=ks=>ks.filter(k=>t10Mark(id,k)).length;
+  const bad=ks=>ks.some(k=>t10Bad(T10_ITEM[k],t10Val(id,k)));
+  let conds=[], keys=[], name='', link='';
+  if(w==='runner'){
+    name='ランナー合格'; link='確定すると、ステップ4「ランナー業務チェックシート」が完了になります（ステップ4の全項目がそろえば、ステップ5へ自動で進みます）';
+    const a=keysOf(3,0), b=keysOf(3,1), c=keysOf(3,2), t=keysOf(3,3);
+    keys=a.concat(b,c,t);
+    const tv=t10Val(id,t[0]);
+    conds=[{ok:cnt(a)===a.length,bad:bad(a),text:'実技の必須業務　'+cnt(a)+' / '+a.length+' が合格'},
+           {ok:cnt(b)===b.length,bad:bad(b),text:'知識確認　'+cnt(b)+' / '+b.length},
+           {ok:cnt(c)===c.length,bad:bad(c),text:'姿勢面　'+cnt(c)+' / '+c.length+' が○'},
+           {ok:cnt(t)===1,bad:bad(t),text:'ランナー業務テスト　'+(typeof tv==='number'?tv+' 点':'未入力')+'（28点以上）'}];
+  } else if(w==='lounge'){
+    name='ラウンジテスト合格'; link='';
+    keys=['l6_test']; const tv=t10Val(id,'l6_test');
+    conds=[{ok:t10Mark(id,'l6_test'),bad:bad(keys),text:'ラウンジウェイターテスト　'+(typeof tv==='number'?tv+' 点':'未入力')+'（26点以上）'}];
+  } else {
+    name='ロープレ最終合格'; link='確定すると、ステップ5「ウェイター業務チェックシート」が完了になります（ほかの項目が残っていれば、ステップは進みません）';
+    const sc=['rp_A','rp_B','rp_C','rp_G','rp_D','rp_E','rp_F'];
+    keys=sc.concat(['rp_final']);
+    conds=[{ok:cnt(sc)===sc.length,bad:bad(sc),text:'場面A〜G　'+cnt(sc)+' / 7 が3軸B以上・抜けなし'},
+           {ok:t10Mark(id,'rp_final'),bad:bad(['rp_final']),text:'A〜G通し（最終）が3軸B以上・抜けなし'}];
+  }
+  const cand=conds.every(c=>c.ok);
+  const anyBad=conds.some(c=>c.bad);
+  let state, tone;
+  if(j){ state=(j.res==='pass'?'確定：合格':'確定：不合格'); tone=j.res==='pass'?'ok':'ng'; }
+  else if(cand){ state='合格候補'; tone='ok'; }
+  else if(anyBad){ state='要補習あり'; tone='ng'; }
+  else if(conds.some(c=>c.ok)||keys.some(k=>t10Entered(T10_ITEM[k],t10Val(id,k)))){ state='入力中'; tone='mid'; }
+  else { state='未実施'; tone='none'; }
+  return {w:w,name:name,link:link,conds:conds,cand:cand,state:state,tone:tone,judge:j};
+}
+function t10GateHtml(id,w){
+  const g=t10Gate(id,w), j=g.judge;
+  const lines=g.conds.map(c=>'<div class="t10-cond"><span class="t10-cm '+(c.ok?'ok':(c.bad?'ng':''))+'">'+(c.ok?'✓':(c.bad?'!':''))+'</span><span class="'+(c.bad&&!c.ok?'t10-ngtx':'')+'">'+t10Esc(c.text)+'</span></div>').join('');
+  let actions='';
+  if(j){
+    actions='<div class="t10-gnote">'+t10Esc((j.by||'')+'　'+(j.at?String(j.at).slice(0,10):''))+'に確定</div><div class="t10-grow"><button class="t10-btn ghost" onclick="t10Judge('+id+',\''+w+'\',\'clear\')">確定を取り消す</button></div>';
+  } else {
+    actions=(g.link?'<div class="t10-gnote">'+t10Esc(g.link)+'</div>':'')+
+      '<div class="t10-grow"><button class="t10-btn" '+(g.cand?'':'disabled')+' onclick="t10Judge('+id+',\''+w+'\',\'pass\')">合格を確定</button>'+
+      '<button class="t10-btn ghost" onclick="t10Judge('+id+',\''+w+'\',\'fail\')">不合格を確定</button></div>';
+  }
+  return '<div class="t10-gate '+g.tone+'"><div class="t10-ghead"><b>'+g.name+'</b><span class="t10-chip '+g.tone+'">'+g.state+'</span></div>'+lines+actions+'</div>';
+}
+
+/* ---- 判定の確定と既存ステップへの連動 ---- */
+function t10Judge(id,w,res){
+  if(!t10Can()) return;
+  const g=t10Gate(id,w); const by=t10Trainer(); const now=new Date().toISOString();
+  const linkKey={runner:'runner_sheet', roleplay:'waiter_sheet'}[w];
+  const s=staff.find(x=>x.id===id);
+  if(res==='clear'){
+    if(!confirm(g.name+'の確定を取り消します。'+(linkKey?'\n連動で完了にしたチェック項目も未完了に戻します（ステップは戻しません）。':'')+'\nよろしいですか？')) return;
+    t10Apply(id,{judge:{[w]:null}});
+    if(linkKey && s && s.checks && s.checks[linkKey]){ s.checks[linkKey]=false; s.updated=today(); s.updater=by; if(window._setDoc) window._setDoc(id,s); }
+  } else if(res==='pass'){
+    if(!g.cand){ alert('合格の条件がそろっていません'); return; }
+    if(!confirm(g.name+'を確定します。'+(g.link?'\n'+g.link:'')+'\nよろしいですか？')) return;
+    t10Apply(id,{judge:{[w]:{res:'pass',by:by,at:now}}});
+    if(linkKey && s){
+      if(!s.checks) s.checks={};
+      s.checks[linkKey]=true; s.updated=today(); s.updater=by;
+      const items=STEP_CHECKS[s.step]||[];
+      const all=items.length>0 && items.every(it=>s.checks[it.key]);
+      if(all && s.step<8){ s.step=s.step+1; try{ showStepUpBanner(s.step); }catch(e){} }
+      if(window._setDoc) window._setDoc(id,s);
+      try{ renderCards(); }catch(e){}
+    }
+  } else {
+    const txt=prompt(g.name+'の不合格を確定します。\n不合格の場面・評価軸を入力してください（例：場面D・言葉遣い）','');
+    if(txt===null) return;
+    const rid='r'+Date.now();
+    t10Apply(id,{judge:{[w]:{res:'fail',by:by,at:now}}, retries:{[rid]:{which:w,date:today(),text:txt,by:by}}});
+  }
+  t10Refresh();
+}
+
+/* ---- 開始 ---- */
+function t10Start(id){
+  if(typeof isEditable==='function' && !isEditable()) return;
+  let name=t10Trainer();
+  const n=prompt('担当する研修者名を入力してください',name||'');
+  if(n===null) return; if(!n.trim()){ alert('研修者名が必要です'); return; }
+  t10SetTrainer(n);
+  t10Apply(id,{start:today(), trainer:n.trim(), items:{}});
+  t10Refresh();
+}
+
+/* ---- 表示：スタッフ詳細の研修セクション ---- */
+function t10Bar(p){ return '<div class="t10-bar"><div style="width:'+p+'%"></div></div>'; }
+function t10DetailSection(id){
+  const d=t10Get(id);
+  if(!d || !d.start){
+    return '<div class="detail-section"><div class="section-label">10日研修</div>'+
+      '<div class="t10-empty">まだ開始していません</div>'+
+      '<button class="t10-btn" onclick="t10Start('+id+')">10日研修を開始する</button></div>';
+  }
+  const st=t10Stat(id);
+  const phases=['run','lng','rp'].map(k=>'<div class="t10-prow"><span>'+T10_PH[k]+'</span>'+t10Bar(st.phase[k])+'<b>'+st.phase[k]+'%</b></div>').join('');
+  const days=T10_DAYS.map((D,i)=>{
+    const s=st.days[i]; const state=s.done===s.total?'完了':(s.entered>0?'進行中':'未着手');
+    return '<div class="t10-day" onclick="t10Day('+id+','+D.d+')"><span class="t10-dn">'+D.d+'日</span><span class="t10-dt">'+D.theme+'</span>'+
+      t10Bar(s.pct)+'<span class="t10-dc">'+s.done+'/'+s.total+'</span><span class="t10-chip '+(state==='完了'?'ok':(state==='進行中'?'mid':'none'))+'">'+state+'</span></div>';
+  }).join('');
+  const retries=d.retries?Object.keys(d.retries).sort().map(k=>{ const r=d.retries[k]; return '<div class="t10-retry">'+t10Esc(r.date||'')+'　'+t10Esc(({runner:'ランナー',lounge:'ラウンジテスト',roleplay:'ロープレ'})[r.which]||'')+'　'+t10Esc(r.text||'')+'</div>'; }).join(''):'';
+  return '<div class="detail-section"><div class="section-label">10日研修</div>'+
+    '<div class="t10-top"><div class="t10-pct">'+st.pct+'<small>%</small></div><div class="t10-top-r">'+phases+
+    '<div class="t10-meta">'+st.done+' / '+st.total+' 項目　開始 '+t10Esc(d.start)+'　担当 '+t10Esc(d.trainer||'未設定')+'</div></div></div>'+
+    '<div class="t10-days">'+days+'</div>'+
+    '<div class="t10-grow" style="margin:10px 0"><button class="t10-btn" onclick="t10Day('+id+','+st.cur+')">'+st.cur+'日目のチェックを入力</button>'+
+    '<button class="t10-btn ghost" onclick="t10Print('+id+')">印刷シート</button></div>'+
+    t10GateHtml(id,'runner')+t10GateHtml(id,'lounge')+t10GateHtml(id,'roleplay')+
+    (retries?'<div class="t10-sub">再ロープレの履歴</div>'+retries:'')+'</div>';
+}
+function t10Intercept(id){
+  if(t10View && t10View.id===id) return t10DayHtml(id,t10View.day);
+  return null;
+}
+
+/* ---- 表示：日別チェック入力 ---- */
+function t10Day(id,day){
+  t10View={id:id,day:day};
+  document.getElementById('modal-title').textContent='10日研修　入力';
+  document.getElementById('modal-body').innerHTML=t10DayHtml(id,day);
+  document.getElementById('overlay').classList.add('open');
+}
+function t10Back(id){
+  t10View=null;
+  document.getElementById('modal-title').textContent='スタッフ詳細';
+  document.getElementById('modal-body').innerHTML=buildDetail(id);
+}
+function t10ItemHtml(id,it,c){
+  const v=t10Val(id,it.k); const lb=T10_OKNG[c]||T10_OKNG.plain;
+  if(it.t==='ox'){
+    return '<div class="t10-item"><div class="t10-il">'+t10Esc(it.l)+(it.n?'<small>'+t10Esc(it.n)+'</small>':'')+'</div><div class="t10-2">'+
+      '<button class="t10-ox '+(v==='o'?'on':'')+'" onclick="t10Ox('+id+',\''+it.k+'\',\'o\')">○'+(lb.ok==='○'?'':' '+lb.ok)+'</button>'+
+      '<button class="t10-ox ng '+(v==='x'?'on':'')+'" onclick="t10Ox('+id+',\''+it.k+'\',\'x\')">×'+(lb.ng==='×'?'':' '+lb.ng)+'</button></div></div>';
+  }
+  if(it.t==='sc'){
+    const has=typeof v==='number'; const st=!has?'未入力':(it.pass==null?'記録済み':(v>=it.pass?'合格':'不合格'));
+    const tone=!has?'none':(it.pass==null?'mid':(v>=it.pass?'ok':'ng'));
+    return '<div class="t10-item"><div class="t10-il">'+t10Esc(it.l)+'<small>'+it.max+'点満点'+(it.n?'・'+t10Esc(it.n):'')+'</small></div>'+
+      '<div class="t10-score"><button class="t10-step" aria-label="1点下げる" onclick="t10Score('+id+',\''+it.k+'\',-1)">−</button>'+
+      '<input type="number" inputmode="numeric" min="0" max="'+it.max+'" value="'+(has?v:'')+'" placeholder="—" onchange="t10ScoreSet('+id+',\''+it.k+'\',this.value)">'+
+      '<span class="t10-unit">/ '+it.max+'</span><button class="t10-step" aria-label="1点上げる" onclick="t10Score('+id+',\''+it.k+'\',1)">＋</button>'+
+      '<span class="t10-chip '+tone+'">'+st+'</span></div></div>';
+  }
+  const r=v||{};
+  const ax=[['post','接客姿勢'],['word','言葉遣い'],['act','所作']].map(a=>
+    '<div class="t10-ax"><span>'+a[1]+'</span>'+['A','B','C'].map(x=>'<button class="t10-abc '+(r[a[0]]===x?'on '+x:'')+'" onclick="t10Axis('+id+',\''+it.k+'\',\''+a[0]+'\',\''+x+'\')">'+x+'</button>').join('')+'</div>').join('');
+  return '<div class="t10-item"><div class="t10-il">'+t10Esc(it.l)+'<small>B以上で合格</small></div>'+ax+
+    '<input class="t10-miss" type="text" placeholder="必須動作の抜け（なければ空欄）" value="'+t10Esc(r.miss||'')+'" onchange="t10Miss('+id+',\''+it.k+'\',this.value)"></div>';
+}
+function t10DayHtml(id,day){
+  const s=staff.find(x=>x.id===id); const D=T10_DAYS[day-1]; const d=t10Get(id)||{};
+  const stt=t10DayStat(id,day);
+  const chips=T10_DAYS.map(x=>{ const ss=t10DayStat(id,x.d); return '<button class="t10-dchip '+(x.d===day?'cur':'')+(ss.done===ss.total?' done':'')+'" onclick="t10Day('+id+','+x.d+')">'+x.d+'</button>'; }).join('');
+  const groups=D.groups.map(g=>'<div class="t10-g">'+(g.g?'<div class="t10-gt">'+g.g+(g.n?'<small>'+g.n+'</small>':'')+'</div>':'')+g.items.map(it=>t10ItemHtml(id,it,g.c)).join('')+'</div>').join('');
+  const nt=(d.notes&&d.notes[day])||{};
+  const showGate=day===3?'runner':(day===6?'lounge':(day===10?'roleplay':''));
+  return '<div class="t10-wrap"><div class="t10-bk"><button class="t10-back" onclick="t10Back('+id+')">← '+t10Esc(s?s.name:'')+'</button></div>'+
+    '<div class="t10-h"><div class="t10-hd">'+day+'日目　'+D.theme+'</div><div class="t10-chips">'+chips+'</div></div>'+
+    '<label class="t10-tr">入力する研修者（入力者として記録されます）<input type="text" value="'+t10Esc(t10Trainer())+'" placeholder="研修者名を入力" onchange="t10SetTrainer(this.value)"></label>'+
+    '<div class="t10-prog"><div><b>'+stt.done+'</b> / '+stt.total+' 項目（'+stt.pct+'%）</div>'+t10Bar(stt.pct)+'</div>'+
+    groups+
+    '<div class="t10-g"><div class="t10-gt">今日のひとこと<small>翌日の最初に確認します</small></div>'+
+    '<label class="t10-ta">できた点<textarea rows="2" onchange="t10Note('+id+','+day+',\'good\',this.value)">'+t10Esc(nt.good||'')+'</textarea></label>'+
+    '<label class="t10-ta">直す点<textarea rows="2" onchange="t10Note('+id+','+day+',\'fix\',this.value)">'+t10Esc(nt.fix||'')+'</textarea></label></div>'+
+    (showGate?t10GateHtml(id,showGate):'')+
+    '<div class="t10-grow"><button class="t10-btn" onclick="t10Back('+id+')">詳細に戻る</button>'+
+    (day<10?'<button class="t10-btn ghost" onclick="t10Day('+id+','+(day+1)+')">次の日へ</button>':'')+'</div></div>';
+}
+
+/* ---- 入力 ---- */
+function t10Redraw(){ if(t10View) { const mb=document.getElementById('modal-body'); if(mb){ const sc=document.getElementById('modal'); const y=sc?sc.scrollTop:0; mb.innerHTML=t10DayHtml(t10View.id,t10View.day); if(sc) sc.scrollTop=y; } } }
+function t10Ox(id,k,val){
+  if(!t10Can()) return;
+  const cur=t10Val(id,k); const it=T10_ITEM[k];
+  t10Apply(id,{items:{[k]:(cur===val?null:val)}}, it.d); t10Redraw();
+}
+function t10Score(id,k,delta){
+  if(!t10Can()) return;
+  const it=T10_ITEM[k]; const cur=t10Val(id,k);
+  let n=typeof cur==='number'?cur+delta:(delta>0?(it.pass!=null?it.pass:0):0);
+  n=Math.max(0,Math.min(it.max,n));
+  t10Apply(id,{items:{[k]:n}}, it.d); t10Redraw();
+}
+function t10ScoreSet(id,k,raw){
+  if(!t10Can()){ t10Redraw(); return; }
+  const it=T10_ITEM[k]; let n=raw===''?null:Number(raw);
+  if(n!==null){ if(isNaN(n)){ t10Redraw(); return; } n=Math.max(0,Math.min(it.max,Math.round(n))); }
+  t10Apply(id,{items:{[k]:n}}, it.d); t10Redraw();
+}
+function t10Axis(id,k,ax,val){
+  if(!t10Can()) return;
+  const it=T10_ITEM[k]; const cur=(t10Val(id,k)||{})[ax];
+  t10Apply(id,{items:{[k]:{[ax]:(cur===val?null:val)}}}, it.d); t10Redraw();
+}
+function t10Miss(id,k,val){
+  if(!t10Can()){ t10Redraw(); return; }
+  const it=T10_ITEM[k];
+  t10Apply(id,{items:{[k]:{miss:String(val).trim()}}}, it.d); t10Redraw();
+}
+function t10Note(id,day,field,val){
+  if(!t10Can()){ t10Redraw(); return; }
+  t10Apply(id,{notes:{[day]:{[field]:String(val)}}}, day);
+}
+
+/* ---- 全体集計 ---- */
+function t10Trainees(){
+  const all=t10All();
+  return staff.filter(s=>all[s.id] && all[s.id].start);
+}
+function t10Cell(pct,entered){
+  if(!entered) return {t:'—',bg:'transparent',fg:'#8A8880'};
+  if(pct>=100) return {t:'100',bg:'#C9A84C',fg:'#1A1917'};
+  if(pct>=80) return {t:String(pct),bg:'rgba(201,168,76,.7)',fg:'#1A1917'};
+  if(pct>=40) return {t:String(pct),bg:'rgba(201,168,76,.35)',fg:'#1A1917'};
+  return {t:String(pct),bg:'rgba(201,168,76,.15)',fg:'#1A1917'};
+}
+function t10OverviewHtml(){
+  const list=t10Trainees(); const all=t10All();
+  if(!list.length) return '<div class="t10-empty" style="padding:40px 0">研修中の人はまだいません。スタッフ詳細の「10日研修」から開始してください。</div>';
+  const rows=list.map(s=>{
+    const st=t10Stat(s.id); const d=all[s.id];
+    const gR=t10Gate(s.id,'runner'), gL=t10Gate(s.id,'lounge'), gP=t10Gate(s.id,'roleplay');
+    const retry=d.retries?Object.keys(d.retries).length:0;
+    return {s:s,d:d,st:st,gates:[gR,gL,gP],retry:retry};
+  });
+  const active=rows.filter(r=>!(r.d.judge&&r.d.judge.roleplay&&r.d.judge.roleplay.res==='pass'));
+  const avg=active.length?Math.round(active.reduce((a,r)=>a+r.st.pct,0)/active.length):0;
+  const cand=rows.filter(r=>r.gates.some(g=>!g.judge&&g.cand)).length;
+  const wait=rows.filter(r=>r.d.judge&&r.d.judge.roleplay&&r.d.judge.roleplay.res==='fail').length;
+  const kpi=[['研修中',active.length+'名'],['平均の達成率',avg+'%'],['合格候補（確定待ち）',cand+'名'],['再ロープレ待ち',wait+'名']]
+    .map(k=>'<div class="t10-kpi"><span>'+k[0]+'</span><b>'+k[1]+'</b></div>').join('');
+  const cards=rows.map(r=>{
+    const chips=r.gates.filter(g=>g.tone!=='none').map(g=>'<span class="t10-chip '+g.tone+'">'+g.name+'：'+g.state+'</span>').join('');
+    return '<div class="t10-card" onclick="t10OpenStaff('+r.s.id+')"><div class="t10-ch"><b>'+t10Esc(r.s.name)+'</b><span class="t10-chip mid">'+r.st.cur+'日目 / 10日</span></div>'+
+      '<div class="t10-cm2">担当：'+t10Esc(r.d.trainer||'未設定')+'　開始：'+t10Esc(r.d.start)+'</div>'+
+      '<div class="t10-cp">'+r.st.pct+'<small>%</small><span>'+r.st.done+' / '+r.st.total+' 項目</span></div>'+
+      ['run','lng','rp'].map(k=>'<div class="t10-prow"><span>'+T10_PH[k]+'</span>'+t10Bar(r.st.phase[k])+'<b>'+r.st.phase[k]+'%</b></div>').join('')+
+      '<div class="t10-chips2">'+(chips||'<span class="t10-chip none">判定はまだありません</span>')+'</div></div>';
+  }).join('');
+  const head='<tr><th>被研修者</th>'+T10_DAYS.map(D=>'<th>'+D.d+'日</th>').join('')+'<th>再ロープレ</th></tr>';
+  const mrows=rows.map(r=>'<tr><td class="t10-nm">'+t10Esc(r.s.name)+'<small>'+t10Esc(r.d.start||'')+'・'+t10Esc(r.d.trainer||'')+'</small></td>'+
+    r.st.days.map(x=>{ const c=t10Cell(x.pct,x.entered>0); return '<td><div class="t10-mc" style="background:'+c.bg+';color:'+c.fg+'">'+c.t+'</div></td>'; }).join('')+
+    '<td class="t10-rt">'+(r.retry?r.retry+'回':'—')+'</td></tr>').join('');
+  // 研修者別
+  const tm={};
+  rows.forEach(r=>{
+    const nm=r.d.trainer||'未設定'; tm[nm]=tm[nm]||{people:0,days:0,inputs:0,A:0,B:0,C:0}; tm[nm].people++;
+    const meta=r.d.daysMeta||{};
+    T10_DAYS.forEach(D=>{
+      const m=meta[D.d]; if(!m||!m.by) return;
+      const t=tm[m.by]=tm[m.by]||{people:0,days:0,inputs:0,A:0,B:0,C:0};
+      t.days++;
+      D.groups.forEach(g=>g.items.forEach(it=>{ const v=t10Val(r.s.id,it.k); if(t10Entered(it,v)) t.inputs++;
+        if(it.t==='rp'&&v) ['post','word','act'].forEach(a=>{ if(v[a]&&t[v[a]]!=null) t[v[a]]++; }); }));
+    });
+  });
+  const trows=Object.keys(tm).map(n=>{ const t=tm[n]; const sum=t.A+t.B+t.C;
+    const w=x=>sum?(x/sum*100):0;
+    return '<tr><td class="t10-nm">'+t10Esc(n)+'</td><td class="r">'+t.people+'</td><td class="r">'+t.days+'</td><td class="r">'+t.inputs+'</td><td>'+
+      '<div class="t10-dist"><i style="width:'+w(t.A)+'%;background:#C9A84C"></i><i style="width:'+w(t.B)+'%;background:#1565C0"></i><i style="width:'+w(t.C)+'%;background:#B85A0F"></i></div>'+
+      '<small>A '+t.A+'・B '+t.B+'・C '+t.C+'</small></td></tr>'; }).join('');
+  // 月別
+  const mm={};
+  rows.forEach(r=>{ const m=(r.d.start||'').slice(0,7)||'—'; mm[m]=mm[m]||{n:0,pass:0,sum:0}; mm[m].n++; mm[m].sum+=r.st.pct; if(r.d.judge&&r.d.judge.roleplay&&r.d.judge.roleplay.res==='pass') mm[m].pass++; });
+  const mrows2=Object.keys(mm).sort().reverse().map(m=>'<tr><td class="t10-nm">'+m+'</td><td class="r">'+mm[m].n+'</td><td class="r">'+mm[m].pass+'</td><td class="r"><b>'+Math.round(mm[m].sum/mm[m].n)+'%</b></td></tr>').join('');
+  return '<div class="t10-kpis">'+kpi+'</div>'+
+    '<h3 class="t10-h3">研修中・研修済みの人</h3><div class="t10-cards">'+cards+'</div>'+
+    '<h3 class="t10-h3">日別の達成率（被研修者 × 日）</h3><div class="t10-sc"><table class="t10-tb">'+head+mrows+'</table></div>'+
+    '<div class="t10-two"><div><h3 class="t10-h3">研修者ごとの実施状況</h3><div class="t10-sc"><table class="t10-tb"><tr><th>研修者</th><th>担当人数</th><th>実施日数</th><th>入力件数</th><th>ロープレ評価の分布</th></tr>'+trows+'</table></div></div>'+
+    '<div><h3 class="t10-h3">月別の推移</h3><div class="t10-sc"><table class="t10-tb"><tr><th>開始月</th><th>人数</th><th>ロープレ合格</th><th>平均達成率</th></tr>'+mrows2+'</table></div></div></div>';
+}
+function t10OpenPanel(){
+  t10PanelOpen=true;
+  document.getElementById('t10-panel').classList.add('open');
+  document.getElementById('t10-body').innerHTML=t10OverviewHtml();
+}
+function t10ClosePanel(){ t10PanelOpen=false; document.getElementById('t10-panel').classList.remove('open'); }
+function t10OpenStaff(id){ t10ClosePanel(); t10View=null; openDetail(id); }
+
+/* ---- 同期 ---- */
+function t10Refresh(){
+  if(t10PanelOpen){ const b=document.getElementById('t10-body'); if(b) b.innerHTML=t10OverviewHtml(); }
+  if(typeof currentId!=='undefined' && currentId!==null && document.getElementById('overlay').classList.contains('open')){
+    const ae=document.activeElement, mb=document.getElementById('modal-body');
+    if(ae && mb && mb.contains(ae) && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return; // 入力中は描き直さない
+    const sc=document.getElementById('modal'); const y=sc?sc.scrollTop:0;
+    mb.innerHTML=buildDetail(currentId); if(sc) sc.scrollTop=y;
+  }
+}
+window.t10OnData=t10Refresh;
+
+/* ---- 印刷シート（A4・2枚） ---- */
+function t10Print(id){
+  const s=staff.find(x=>x.id===id); const d=t10Get(id)||{};
+  const row=(it,pre)=>{
+    const res=it.t==='sc'?('　　 ／'+it.max+'点'):(it.t==='rp'?'A　B　C':'○　　×');
+    return '<div class="r"><div class="a">'+(pre||'')+t10Esc(it.l)+(it.n?'（'+t10Esc(it.n)+'）':'')+'</div><div class="b">'+res+'</div><div class="c"></div></div>';
+  };
+  const dayBlock=(D)=>'<div class="dg"><div class="dl"><b>'+D.d+'日目</b><span>'+D.theme+'</span></div><div class="dr">'+
+    D.groups.map(g=>g.items.map(it=>row(it,({'実技（必須業務）':'実技：','知識確認':'知識：','姿勢面チェック':'姿勢：'})[g.g]||'')).join('')).join('')+'</div></div>';
+  const head='<div class="th"><div class="a">確認項目</div><div class="b">結果（○を付ける）</div><div class="c">備考</div></div>';
+  const title=(n,sub)=>'<div class="tt"><div><small>BEKKAN　社員希望PA 10日間研修</small><h1>研修チェックシート（'+n+'/2）　'+sub+'</h1></div><div>'+n+' / 2</div></div>'+
+    '<div class="fl"><div>被研修者名　<u>'+t10Esc(s?s.name:'')+'</u></div><div>研修者名　<u>'+t10Esc(d.trainer||'')+'</u></div><div>開始日　<u>'+t10Esc(d.start||'')+'</u></div></div>';
+  const memo='<div class="mh"><div>日</div><div>できた点（1つ）</div><div>直す点（1つ）</div></div>'+[1,2,3].map(n=>'<div class="mr"><div>'+n+'日目</div><div></div><div></div></div>').join('');
+  const p1=title(1,'ランナー　1〜3日目')+'<div class="tbl">'+head+[1,2,3].map(n=>dayBlock(T10_DAYS[n-1])).join('')+'</div>'+
+    '<div class="jb"><b>ランナー判定（3日目）</b>　□ 合格　　□ 要補習　　判定日　　　／　　研修者サイン　　　　　　<br><small>条件：テスト28点以上 ／ 実技の必須業務がすべて合格 ／ 知識確認に回答できる ／ 姿勢面に×がない</small></div>'+memo;
+  const sc=T10_SCENES.map(x=>'<div class="gr"><div class="g1">場面'+x[0]+'　'+x[1]+'</div><div class="g2"></div><div class="g3">A　B　C</div><div class="g3">A　B　C</div><div class="g3">A　B　C</div><div class="g4"></div></div>').join('');
+  const p2=title(2,'ラウンジ・ロープレ　4〜10日目')+'<div class="tbl">'+head+[4,5,6].map(n=>dayBlock(T10_DAYS[n-1])).join('')+'</div>'+
+    '<div class="rh">7〜10日目　ロールプレイ評価（A・B・Cのどれかに○）</div>'+
+    '<div class="gr gh"><div class="g1">場面</div><div class="g2">日付</div><div class="g3">接客姿勢</div><div class="g3">言葉遣い</div><div class="g3">所作</div><div class="g4">必須動作の抜け</div></div>'+sc+
+    '<div class="jb"><b>最終判定（10日目）</b>　□ 合格　　□ 不合格（再ロープレ）　　判定日　　　／　　研修者サイン　　　　　　<br><small>条件：3軸すべてがB以上 ／ 各場面の必須動作に抜けがない</small><div class="ov">OJTへの申し送り・再ロープレの場面と軸：</div></div>';
+  const css='@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;font-family:"Hiragino Sans","Noto Sans JP",sans-serif;font-size:12px;line-height:1.4;color:#111}'+
+    '.pg{width:210mm;height:297mm;padding:10mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;gap:9px}.pg:last-child{page-break-after:auto}'+
+    '.tt{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:6px}.tt h1{margin:0;font-size:19px}.tt small{font-size:11px;letter-spacing:.1em}'+
+    '.fl{display:flex;gap:20px;font-size:13px}.fl div{flex:1}.fl u{display:inline-block;min-width:110px;text-decoration:none;border-bottom:1px solid #111}'+
+    '.tbl{border:1px solid #111}.th,.r{display:grid;grid-template-columns:1fr 100px 150px}.th{background:#e6e6e6;font-weight:700}.th>div{padding:3px 6px;border-right:1px solid #111}.th>div:last-child{border-right:0}'+
+    '.dg{display:grid;grid-template-columns:78px 1fr;border-top:1px solid #111}.dl{padding:4px 6px;background:#f3f3f3;border-right:1px solid #111}.dl b{font-size:16px;display:block}.dl span{font-size:11px}'+
+    '.r{height:21px;border-bottom:1px solid #777}.r:last-child{border-bottom:0}.r>div{padding:0 6px;display:flex;align-items:center;border-right:1px solid #777;white-space:nowrap;overflow:hidden}.r>div:last-child{border-right:0}.r .b{justify-content:center;white-space:pre}'+
+    '.jb{border:2px solid #111;padding:6px 10px;font-size:12px}.jb small{font-size:11px}.ov{border-top:1px solid #777;margin-top:6px;padding-top:3px;height:34px}'+
+    '.mh,.mr{display:grid;grid-template-columns:50px 1fr 1fr;border:1px solid #111;border-top:0}.mh{background:#e6e6e6;font-weight:700;border-top:1px solid #111}.mh>div,.mr>div{padding:0 6px;border-right:1px solid #111;display:flex;align-items:center}.mr{height:26px}'+
+    '.rh{font-weight:700;font-size:13px;margin-top:2px}.gr{display:grid;grid-template-columns:172px 52px 1fr 1fr 1fr 120px;border:1px solid #111;border-top:0;height:24px}.gr.gh{background:#e6e6e6;font-weight:700;border-top:1px solid #111;height:auto}'+
+    '.gr>div{padding:0 6px;display:flex;align-items:center;border-right:1px solid #111;white-space:pre;overflow:hidden}.gr>div:last-child{border-right:0}.g3{justify-content:center}';
+  const w=window.open('','_blank');
+  if(!w){ alert('ポップアップがブロックされました。許可してからもう一度押してください'); return; }
+  w.document.open();
+  w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>10日研修チェックシート '+t10Esc(s?s.name:'')+'</title><style>'+css+'</style></head><body><div class="pg">'+p1+'</div><div class="pg">'+p2+'</div><script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>');
+  w.document.close();
+}
 
 // ============ 認証 ============
 const PW_VIEW = 'bekkanstaff1234';
