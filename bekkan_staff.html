@@ -790,6 +790,17 @@ function makeCard(s){
   </div>`;
 }
 
+// 表示順：社員 → アルバイト → パート → その他。それぞれ入社日が早い順（入社日なしは最後、同じ日は元の並び順）
+function sortStaffList(list){
+  const rank=e=>({'社員':0,'アルバイト':1,'パート':2})[e]!==undefined?({'社員':0,'アルバイト':1,'パート':2})[e]:3;
+  const idx=new Map(staff.map((s,i)=>[s,i]));
+  return list.slice().sort((x,y)=>{
+    const r=rank(x.emp)-rank(y.emp); if(r) return r;
+    const xs=x.start||'9999-99-99', ys=y.start||'9999-99-99';
+    if(xs!==ys) return xs<ys?-1:1;
+    return (idx.get(x)||0)-(idx.get(y)||0);
+  });
+}
 function renderCards(){
   const q=document.getElementById('search').value.toLowerCase();
   const posFilter=document.getElementById('pos-f').value;
@@ -810,7 +821,7 @@ function renderCards(){
 
   let html='';
   targets.forEach(pos=>{
-    const members=filtered.filter(s=>s.pos===pos);
+    const members=sortStaffList(filtered.filter(s=>s.pos===pos));
     if(!members.length) return;
     html+=`<div class="pos-section">
       <div class="pos-section-header">
