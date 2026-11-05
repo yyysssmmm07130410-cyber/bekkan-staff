@@ -22,6 +22,7 @@
   const db     = getFirestore(app);
   const colRef = collection(db, 'staff');
 
+  const _base = {};
   // リアルタイム同期
   onSnapshot(colRef, (snapshot) => {
     if(snapshot.empty){
@@ -30,6 +31,8 @@
     }
     const fetched = snapshot.docs.map(d => {
       const data = d.data();
+      // 差分保存の基準（最後に受信した内容）
+      _base[d.id] = JSON.parse(JSON.stringify(data));
       data.id = isNaN(d.id) ? d.id : Number(d.id);
       return data;
     });
@@ -62,10 +65,51 @@
     window._t10Data = m;
     if(window.t10OnData) window.t10OnData();
   });
-  window._t10Merge = (id, data) => setDoc(doc(db, 'training10', String(id)), sanitize(data), { merge: true });
+  window._t10Merge = (id, data) => setDoc(doc(db, 'training10', String(id)), sanitize(data), { merge: true }).catch(e=>{ saveError(e.code||e.message); throw e; });
 
   // グローバル公開
-  window._setDoc    = (id, data) => setDoc(doc(db, 'staff', String(id)), sanitize(data));
+  // 保存は「変更のあった項目だけ」を送る（他の端末の更新を古い内容で上書きしない）
+  function diffObj(a, b){
+    const isObj = v => v && typeof v==='object' && !Array.isArray(v);
+    if(isObj(a) && isObj(b)){
+      const out = {}; let n = 0;
+      for(const k of Object.keys(a)){
+        const d = diffObj(a[k], b[k]);
+        if(d !== undefined){ out[k] = d; n++; }
+      }
+      return n ? out : undefined;
+    }
+    return JSON.stringify(a) === JSON.stringify(b) ? undefined : a;
+  }
+  function saveError(msg){
+    let bar = document.getElementById('save-error-bar');
+    if(!bar){
+      bar = document.createElement('div'); bar.id = 'save-error-bar';
+      Object.assign(bar.style,{position:'fixed',left:'0',right:'0',top:'0',zIndex:'9999',background:'#B3261E',color:'#fff',padding:'10px 16px',fontSize:'13px',textAlign:'center',cursor:'pointer'});
+      bar.onclick = () => bar.remove();
+      document.body.appendChild(bar);
+    }
+    bar.textContent = '⚠ 保存に失敗しました：' + msg + '（タップで閉じる）';
+  }
+  window._setDoc = async (id, data) => {
+    const full = sanitize(data);
+    const base = _base[String(id)];
+    const part = base ? diffObj(full, base) : full;
+    if(part === undefined) return;
+    const size = new Blob([JSON.stringify(part)]).size;
+    const total = new Blob([JSON.stringify(full)]).size;
+    if(total > 950000){ saveError('このスタッフのデータが大きすぎます（添付ファイル/写真が多い）。添付を減らしてください'); }
+    try {
+      await setDoc(doc(db, 'staff', String(id)), part, { merge: true });
+      const bar = document.getElementById('save-error-bar'); if(bar) bar.remove();
+    } catch(e){
+      console.error('save failed', e);
+      const code = e && e.code ? e.code : '';
+      saveError(code==='resource-exhausted' ? 'Firebaseの無料枠（書き込み回数/容量）を超えています' :
+                code==='invalid-argument' ? 'データサイズが上限(1MB)を超えています' : (code || e.message || '不明なエラー'));
+      throw e;
+    }
+  };
   window._deleteDoc = (id)       => deleteDoc(doc(db, 'staff', String(id)));
 
   // Firestoreに保存できないundefinedを除去
@@ -549,8 +593,8 @@ const STEPS=[
   {id:5,label:'ラウンジ',short:'LNG'},
   {id:6,label:'個室',short:'個室'},
   {id:7,label:'全個室可',short:'全個室'},
-  {id:8,label:'MAMO責任者',short:'MAMO'},
-  {id:9,label:'ポーター',short:'PTR'},
+  {id:8,label:'ポーター',short:'PTR'},
+  {id:9,label:'MAMO責任者',short:'MAMO'},
   {id:10,label:'センター',short:'CTR'},
 ];
 
@@ -595,10 +639,10 @@ const STEP_CHECKS = {
     { key:'practical',  label:'個室実技テスト', file:false, testType:'practical' },
   ],
   8: [
-    { key:'mamo_train',   label:'MAMO研修',   file:false, train:true },
+    { key:'porter_train', label:'ポーター研修', file:false, train:true },
   ],
   9: [
-    { key:'porter_train', label:'ポーター研修', file:false, train:true },
+    { key:'mamo_train',   label:'MAMO研修',   file:false, train:true },
   ],
   10: [
     // センター研修3種（いずれか1つでOK）
@@ -766,8 +810,8 @@ function sectionBadges(s){
   if(s.step>=5) badges+=`<span class="sec-badge sec-lounge">ラウンジ</span>`;
   if(s.step>=6) badges+=`<span class="sec-badge sec-room">個室</span>`;
   if(s.step>=7) badges+=`<span class="sec-badge" style="background:#E6F1FB;color:#1565C0">全個室可</span>`;
-  if(s.step>=8) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">MAMO責任者</span>`;
-  if(s.step>=9) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">ポーター</span>`;
+  if(s.step>=8) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">ポーター</span>`;
+  if(s.step>=9) badges+=`<span class="sec-badge" style="background:#EEEDFE;color:#3C3489">MAMO責任者</span>`;
   if(s.step>=10) badges+=`<span class="sec-badge" style="background:#2C2C2A;color:#F1EFE8">センター${s.centerApt?'('+s.centerApt+')':''}</span>`;
   if(s.pos==='BAR') badges+=`<span class="sec-badge sec-bar">BAR</span>`;
   return badges;
@@ -1177,6 +1221,11 @@ function buildDetail0(id){
       }
 
       let bodyHtml = '<div class="cl-list">';
+      if(st.id>=8){
+        const sup=(s.supervisors&&s.supervisors[st.id])||'';
+        bodyHtml += `<div class="test-field" style="margin-bottom:8px"><label>担当上司</label>
+          <input type="text" placeholder="例：山本 主任" value="${sup.replace(/"/g,'&quot;')}" onchange="updateSupervisor(${id},${st.id},this.value)"></div>`;
+      }
       // 通常項目
       normalItems.forEach(it=>{ bodyHtml += renderItem(it); });
       // ラウンジ研修グループアコーディオン
@@ -1326,6 +1375,14 @@ function setStepDirect(stepId){
   renderCards();
 }
 
+function updateSupervisor(id,stepId,val){
+  if(!isEditable()) return;
+  const s=staff.find(x=>x.id===id); if(!s) return;
+  if(!s.supervisors) s.supervisors={};
+  s.supervisors[stepId]=val.trim();
+  s.updated=today(); s.updater='教育担当';
+  if(window._setDoc) window._setDoc(id,s);
+}
 function updateCenterApt(id,val){
   if(!isEditable()) return;
   const s=staff.find(x=>x.id===id); if(!s) return;
@@ -1814,7 +1871,10 @@ async function saveAdd(){
   const name=document.getElementById('a-name').value.trim();
   if(!name){alert('氏名を入力してください');return;}
   showSaving();
-  const newId = nextId++;
+  // 既存スタッフのIDと重複しない番号を採番（読込のたびに固定値へ戻るため、現在の最大値から決める）
+  const maxId = Math.max(nextId-1, ...staff.map(x=>Number(x.id)).filter(n=>!isNaN(n)), ...DEFAULT_STAFF.map(x=>Number(x.id)).filter(n=>!isNaN(n)));
+  const newId = maxId + 1;
+  nextId = newId + 1;
   const s={
     id:newId, name,
     kana:    document.getElementById('a-kana').value.trim(),
